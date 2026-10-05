@@ -26,11 +26,12 @@ H.264). Para usar outro executável, defina `CHROME_PATH`. A comparação de qua
 | `docs/fanta/` | Kit original (guia de animações, dados, manifesto, verificação dos MP4). |
 | `public/media/fanta/` | 7 MP4 + 7 capas JPG da v2, **sem alteração** (md5 iguais aos da entrega). |
 | `public/media/fanta/derived/` | Cópias derivadas e identificadas: miniaturas do seletor (`*-thumb-v2.webp`, recortes das capas), `fanta-colecao-quadro-000-v2.jpg` (quadro 0 da coleção; a capa oficial é o quadro 120), `fanta-<sabor>-quadro-090-v2.jpg` (lata de costas, capa durante a troca) e `sabores-elementos/` (frutas, gelo e gás gerados; ver `docs/elementos-gerados/`). |
+| `public/media/fanta/cta/` | CTA final: `fanta-cta-scrub.mp4` (quadros 41–167 de `video-fanta_HD.mp4`, 24 fps, um quadro-chave por quadro, 9,3 MB) e capas dos quadros 0 e 5. |
 | `src/data/` | `produtos-site.json` (do kit) + `products.ts` (acentos, descrição visual da arte, áreas seguras) + `flavorWorld.ts` (elementos de fundo por sabor). |
 | `src/media/` | `ScrubVideoController` (controlador de vídeo), `framing` (enquadramento sem cortes), `frames`, `posterCache`, `debug`. |
 | `src/interaction/` | Motor de scroll único, coreografia dos sabores (`flavorTimeline`), arrasto horizontal, navegação/seleção, hooks. |
-| `src/components/` | Cabeçalho, hero da coleção, intervalo tipográfico, palco de sabores, fecho. |
-| `scripts/verify/` | Testes de navegador (layout, interação, prova de quadro, resiliência, resize) + `capture-swap.mjs` (capturas em pontos da troca) e `record-swap.mjs` (vídeo da rolagem real via screencast do CDP + ffmpeg). |
+| `src/components/` | Cabeçalho, hero da coleção, intervalo tipográfico, palco de sabores, fecho, CTA final. |
+| `scripts/verify/` | Testes de navegador (layout, interação, prova de quadro, resiliência, resize) + `capture-swap.mjs` (capturas em pontos da troca) e `record-swap.mjs` (vídeo da rolagem real via screencast do CDP + ffmpeg); para a CTA, `capture-cta.mjs`, `record-cta.mjs` e `cta-checks.mjs` (movimento reduzido, botão, atraso do scrub na roda). |
 
 ## Palco de sabores: a troca de lata
 
@@ -54,6 +55,21 @@ H.264). Para usar outro executável, defina `CHROME_PATH`. A comparação de qua
   lata**. Quem chega nasce de trás dela; quem sai passa pela câmera (cresce, desfoca, some).
   Profundidade = desfoque, brilho e deslocamento pelo mouse. Movimento reduzido: composição parada,
   só o sabor escolhido.
+
+## CTA final (scroll transform)
+
+Recria a referência `reference-cta.mp4` medida quadro a quadro (`src/interaction/ctaTimeline.ts`). O palco
+fica preso por ~2,4 telas e uma batida suavizada (0–163, a mesma contagem da referência) move tudo:
+
+- **Vídeo:** avança do quadro 0 ao 126 (acelera até 2× e assenta) e volta ao quadro 5, a pose final.
+  Curva monotônica sobre os pontos medidos por diferença de imagem, sem tranco na virada.
+- **Blocos que passam:** sobem na velocidade da página (1,25 % da altura por batida) e acendem no
+  meio da tela, como os retângulos laranja da referência (laranja amostrado: `#f56301`).
+- **Título** letra a letra, linha após linha; **degradê** na base; **botão** sobe de baixo e assenta
+  ao lado do título. Leva ao capítulo da Uva (a lata na mão).
+- **Tela em pé:** o vídeo cobre o palco e recua para o topo (escala ancorada no alto) antes do título,
+  para o texto não ficar sobre a lata. **Entrada:** o topo do vídeo nasce do preto da seção anterior.
+- **Movimento reduzido:** composição final parada (capa do quadro 5), sem vídeo nem blocos.
 
 ## Como a mídia é controlada
 

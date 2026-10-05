@@ -1,12 +1,12 @@
 import { useMemo, useRef, type CSSProperties } from 'react';
-import { COLLECTION, COLLECTION_ORDER, MEDIA_REVISION } from '../data/products';
+import { COLLECTION, COLLECTION_ORDER } from '../data/products';
 import { computeFraming } from '../media/framing';
 import { useElementSize, useInView, useScrollProgress, useWideLayout } from '../interaction/hooks';
 import { goToFlavor, goToSection } from '../interaction/navigation';
 
 /**
  * Fecho: a capa oficial da coleção (Ghost Face Punch à frente) enquadrada sem cortes, com acesso
- * direto a cada sabor, chamadas de volta e a nota sobre a natureza conceitual do projeto.
+ * direto a cada sabor e chamadas de volta. A nota de projeto conceitual fica no rodapé.
  */
 
 interface Props {
@@ -146,21 +146,6 @@ export function ClosingSection({ reducedMotion }: Props) {
         )}
       </div>
 
-      <div className="closing__about">
-        <h3>Sobre este projeto</h3>
-        <p>
-          Apresentação conceitual e não oficial, criada para explorar a coleção em vídeo, scroll e
-          toque. Não é um canal da marca nem indica parceria.
-        </p>
-        <p>
-          As latas são recriações em 3D a partir das artes: traços e tipografia podem diferir dos
-          originais, e versos e laterais sem referência ficaram discretos. Esta página não traz preço,
-          disponibilidade, ingredientes ou informações nutricionais.
-        </p>
-        <p className="closing__meta">
-          Vídeos renderizados · 1920 × 1080 · 30 fps · revisão <code>{MEDIA_REVISION}</code>
-        </p>
-      </div>
     </section>
   );
 }

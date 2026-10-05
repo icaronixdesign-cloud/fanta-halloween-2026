@@ -22,12 +22,16 @@ for (const [w, h] of [[1440, 900], [390, 844], [844, 390], [768, 1024], [1440, 9
   s = await waitSettled(page, 'sabor:maracuja'); const g = await geo();
   ok(g.inside && g.belowIntro && Math.abs(g.aspect - 16 / 9) < 0.002 && g.ovX === 0 && s.presentedFrame === s.targetFrame, `${w}x${h} ${g.layout}: área segura dentro=${g.inside}, livre do texto=${g.belowIntro}, proporção ${g.aspect}, quadro ${s.presentedFrame}/${s.targetFrame}`);
 }
-// Suspensão: na seção final nenhum controlador ativo nem vídeo tocando
+// Suspensão: no fecho (entre os sabores e a CTA) nenhum controlador ativo nem vídeo tocando
 await page.click('.flavor-picker__item[href="#sabor-uva"]', { force: true }); await sleep(1000);
 await page.click('.icon-button.is-play'); await sleep(800);
-await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })); await sleep(1200);
+await page.evaluate(() => { const s = document.getElementById('sobre'); window.scrollTo({ top: s.getBoundingClientRect().top + scrollY + (s.offsetHeight - innerHeight) / 2, behavior: 'instant' }); }); await sleep(1200);
 const snaps = await page.evaluate(() => window.__fantaDebug.snapshot().map((c) => ({ l: c.label, active: c.active, paused: c.paused, mode: c.mode })));
 ok(snaps.every((c) => !c.active && c.paused), `fora das seções de vídeo: ${JSON.stringify(snaps.filter((c) => c.active || !c.paused))} ativos/tocando`);
+// Fim da página: só a CTA ativa, pausada (scrub), sem reprodução
+await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })); await sleep(1200);
+const endSnaps = await page.evaluate(() => window.__fantaDebug.snapshot().map((c) => ({ l: c.label, active: c.active, paused: c.paused, mode: c.mode })));
+ok(endSnaps.every((c) => c.paused && (c.l === 'cta' ? c.mode === 'scroll' : !c.active)), `fim da página: ${JSON.stringify(endSnaps.filter((c) => c.active || !c.paused))} ativos/tocando`);
 const before = await page.evaluate(() => window.__fantaDebug.snapshot().reduce((a, c) => a + c.seeksIssued, 0));
 for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 200); await sleep(60); }
 const after = await page.evaluate(() => window.__fantaDebug.snapshot().reduce((a, c) => a + c.seeksIssued, 0));
