@@ -1,0 +1,13 @@
+FANTA HALLOWEEN 2026 — VÍDEOS REFINADOS — V2 TAMPA FIXA
+
+Seis loops individuais de 6 segundos / 180 quadros e um da coleção de 8 segundos / 240 quadros. Renderização nativa em 1920 × 1080, 30 fps, Cycles com aceleração HIPRT na Radeon RX 6800 XT, 48 amostras e redução de ruído. Sem upscale e sem áudio.
+
+Foram refinados o perfil do corpo, ombro, colo, dupla costura do aro, base côncava, tampa rebaixada, sulco, anel e rebite. Alumínio acetinado, impressão com verniz moderado, rugosidade e marcas sutis, água transparente com refração e contato com a superfície. Luzes amplas de estúdio, acentos por sabor, rotações suaves, flutuação, aproximação e tampa permanentemente encaixada. O enquadramento foi elevado para manter o topo visível durante toda a rotação. A coleção mantém as seis latas visíveis e aproxima Ghost Face Punch sem mudar seu tamanho físico.
+
+As seis artes anteriores foram preservadas e confrontadas com as frentes oficiais; Maracujá e Caju mantêm personagens e paletas distintos. São recriações rasterizadas, com diferenças em traços e tipografia, não arquivos oficiais de produção. Versos e partes laterais sem referência permanecem discretos e escuros. Não foram inventados códigos, tabelas, QR ou licenciamento. Mecânica e base continuam sendo aproximações para visualização. A tampa não se afasta, não se oculta nem muda de escala nesta revisão.
+
+Todos os MP4 são H.264 High, yuv420p, faststart e GOP 1: cada quadro é keyframe, prontos para navegação por scroll. Essa é a única variante. As sete cenas .blend são editáveis, com texturas incorporadas e peças separadas. As cópias temporárias de renderização unem as peças rígidas para acelerar o processamento.
+
+Os sete arquivos foram decodificados integralmente e verificados quanto a duração, resolução, fps, quadros, keyframes, áudio e faststart. Também foram conferidos vários pontos da rotação, a passagem do loop e os recursos incorporados nas cenas. Resultados em verificacao.json; arquivos e variantes em manifest.json. Originais preservados.
+
+Referências: ref-video.mp4 fornecido e https://www.coca-cola.com/br/pt/brands/fanta/produtos. O Instagram não ficou disponível.

@@ -1,0 +1,179 @@
+{
+  "title": "Fanta Halloween 2026 — vídeos refinados",
+  "created": "2026-10-05",
+  "revision": "v2-tampa-fixa",
+  "renderEngine": "Cycles",
+  "renderDevice": "AMD Radeon RX 6800 XT / HIPRT",
+  "nativeResolution": [
+    1920,
+    1080
+  ],
+  "samples": 48,
+  "denoiser": "OpenImageDenoise HIGH / FAST auxiliary prefilter",
+  "renderOptimization": "Rigid geometry joined in temporary render copy; detailed individual parts preserved in delivered editable scenes.",
+  "reference": "ref-video.mp4",
+  "notes": "Texturas frontais recriadas confrontadas com referências oficiais. Versos e áreas laterais não documentadas mantidas discretas. Mecânica ilustrativa. Tampa fixa e encaixada em todos os quadros; enquadramento superior ajustado. Variante única all-intra para scroll.",
+  "items": [
+    {
+      "id": "ghost-face-punch",
+      "video": "fanta-ghost-face-punch-loop.mp4",
+      "poster": "fanta-ghost-face-punch-poster.jpg",
+      "scene": "fanta-ghost-face-punch.blend",
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "duration": 6.0,
+      "frames": 180,
+      "allFramesKeyframes": true,
+      "audio": false,
+      "variants": [
+        {
+          "id": "scroll",
+          "file": "fanta-ghost-face-punch-loop.mp4",
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "gop": 1,
+          "faststart": true
+        }
+      ]
+    },
+    {
+      "id": "guarana",
+      "video": "fanta-guarana-loop.mp4",
+      "poster": "fanta-guarana-poster.jpg",
+      "scene": "fanta-guarana.blend",
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "duration": 6.0,
+      "frames": 180,
+      "allFramesKeyframes": true,
+      "audio": false,
+      "variants": [
+        {
+          "id": "scroll",
+          "file": "fanta-guarana-loop.mp4",
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "gop": 1,
+          "faststart": true
+        }
+      ]
+    },
+    {
+      "id": "maracuja",
+      "video": "fanta-maracuja-loop.mp4",
+      "poster": "fanta-maracuja-poster.jpg",
+      "scene": "fanta-maracuja.blend",
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "duration": 6.0,
+      "frames": 180,
+      "allFramesKeyframes": true,
+      "audio": false,
+      "variants": [
+        {
+          "id": "scroll",
+          "file": "fanta-maracuja-loop.mp4",
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "gop": 1,
+          "faststart": true
+        }
+      ]
+    },
+    {
+      "id": "uva",
+      "video": "fanta-uva-loop.mp4",
+      "poster": "fanta-uva-poster.jpg",
+      "scene": "fanta-uva.blend",
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "duration": 6.0,
+      "frames": 180,
+      "allFramesKeyframes": true,
+      "audio": false,
+      "variants": [
+        {
+          "id": "scroll",
+          "file": "fanta-uva-loop.mp4",
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "gop": 1,
+          "faststart": true
+        }
+      ]
+    },
+    {
+      "id": "laranja",
+      "video": "fanta-laranja-loop.mp4",
+      "poster": "fanta-laranja-poster.jpg",
+      "scene": "fanta-laranja.blend",
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "duration": 6.0,
+      "frames": 180,
+      "allFramesKeyframes": true,
+      "audio": false,
+      "variants": [
+        {
+          "id": "scroll",
+          "file": "fanta-laranja-loop.mp4",
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "gop": 1,
+          "faststart": true
+        }
+      ]
+    },
+    {
+      "id": "caju",
+      "video": "fanta-caju-loop.mp4",
+      "poster": "fanta-caju-poster.jpg",
+      "scene": "fanta-caju.blend",
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "duration": 6.0,
+      "frames": 180,
+      "allFramesKeyframes": true,
+      "audio": false,
+      "variants": [
+        {
+          "id": "scroll",
+          "file": "fanta-caju-loop.mp4",
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "gop": 1,
+          "faststart": true
+        }
+      ]
+    },
+    {
+      "id": "colecao",
+      "video": "fanta-colecao-loop.mp4",
+      "poster": "fanta-colecao-poster.jpg",
+      "scene": "fanta-colecao-halloween-2026.blend",
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "duration": 8.0,
+      "frames": 240,
+      "allFramesKeyframes": true,
+      "audio": false,
+      "variants": [
+        {
+          "id": "scroll",
+          "file": "fanta-colecao-loop.mp4",
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "gop": 1,
+          "faststart": true
+        }
+      ]
+    }
+  ]
+}

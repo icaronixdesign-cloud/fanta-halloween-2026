@@ -1,0 +1,354 @@
+{
+  "date": "2026-10-05",
+  "revision": "v2-tampa-fixa",
+  "videos": [
+    {
+      "id": "ghost-face-punch",
+      "file": "fanta-ghost-face-punch-loop.mp4",
+      "codec": "h264",
+      "pixelFormat": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "fps": "30/1",
+      "duration": 6.0,
+      "decodedFrames": 180,
+      "allFramesAreKeyframes": true,
+      "faststart": true,
+      "audio": false,
+      "loopSeamMeanPixelDifference": 1.6279455423355103,
+      "loopSeamVsNeighborRatio": 1.005010555917514,
+      "bytes": 7539719,
+      "sha256": "5dec2667300eb6ac59b09d36b30943dfd18a3e762211f46ededa20000316dcf6",
+      "visualReviewFrames": [
+        1,
+        23,
+        46,
+        68,
+        91,
+        113,
+        136,
+        179,
+        180
+      ]
+    },
+    {
+      "id": "guarana",
+      "file": "fanta-guarana-loop.mp4",
+      "codec": "h264",
+      "pixelFormat": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "fps": "30/1",
+      "duration": 6.0,
+      "decodedFrames": 180,
+      "allFramesAreKeyframes": true,
+      "faststart": true,
+      "audio": false,
+      "loopSeamMeanPixelDifference": 1.7098495960235596,
+      "loopSeamVsNeighborRatio": 1.0004436106053067,
+      "bytes": 9951365,
+      "sha256": "407ce0c4ecfdf351499d169454d25ffea25ee4f9271299c457fde763c358684f",
+      "visualReviewFrames": [
+        1,
+        23,
+        46,
+        68,
+        91,
+        113,
+        136,
+        179,
+        180
+      ]
+    },
+    {
+      "id": "maracuja",
+      "file": "fanta-maracuja-loop.mp4",
+      "codec": "h264",
+      "pixelFormat": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "fps": "30/1",
+      "duration": 6.0,
+      "decodedFrames": 180,
+      "allFramesAreKeyframes": true,
+      "faststart": true,
+      "audio": false,
+      "loopSeamMeanPixelDifference": 1.7667418718338013,
+      "loopSeamVsNeighborRatio": 0.9917326310338969,
+      "bytes": 9034982,
+      "sha256": "2daa43f02b7d4a73dab829cd24d2d308ff9e7f3b5953a9a366e62c0896150436",
+      "visualReviewFrames": [
+        1,
+        23,
+        46,
+        68,
+        91,
+        113,
+        136,
+        179,
+        180
+      ]
+    },
+    {
+      "id": "uva",
+      "file": "fanta-uva-loop.mp4",
+      "codec": "h264",
+      "pixelFormat": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "fps": "30/1",
+      "duration": 6.0,
+      "decodedFrames": 180,
+      "allFramesAreKeyframes": true,
+      "faststart": true,
+      "audio": false,
+      "loopSeamMeanPixelDifference": 1.572899341583252,
+      "loopSeamVsNeighborRatio": 1.0034186134922567,
+      "bytes": 8598628,
+      "sha256": "23f9bc3cf5ddff357d67025b346f7b06a8ec8075c8a2d659aef2c881d8a7dc46",
+      "visualReviewFrames": [
+        1,
+        23,
+        46,
+        68,
+        91,
+        113,
+        136,
+        179,
+        180
+      ]
+    },
+    {
+      "id": "laranja",
+      "file": "fanta-laranja-loop.mp4",
+      "codec": "h264",
+      "pixelFormat": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "fps": "30/1",
+      "duration": 6.0,
+      "decodedFrames": 180,
+      "allFramesAreKeyframes": true,
+      "faststart": true,
+      "audio": false,
+      "loopSeamMeanPixelDifference": 1.483778953552246,
+      "loopSeamVsNeighborRatio": 1.0022065414242645,
+      "bytes": 9455609,
+      "sha256": "bbd84388151614d24bc433bacb8454a1153855c3dbc2150900fece0091a27640",
+      "visualReviewFrames": [
+        1,
+        23,
+        46,
+        68,
+        91,
+        113,
+        136,
+        179,
+        180
+      ]
+    },
+    {
+      "id": "caju",
+      "file": "fanta-caju-loop.mp4",
+      "codec": "h264",
+      "pixelFormat": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "fps": "30/1",
+      "duration": 6.0,
+      "decodedFrames": 180,
+      "allFramesAreKeyframes": true,
+      "faststart": true,
+      "audio": false,
+      "loopSeamMeanPixelDifference": 1.556522011756897,
+      "loopSeamVsNeighborRatio": 1.0001859111092115,
+      "bytes": 9217328,
+      "sha256": "3d3de3da3f5dd563c21d273ff75c82676fafcad61cf5ea8d4b4448af55088ce6",
+      "visualReviewFrames": [
+        1,
+        23,
+        46,
+        68,
+        91,
+        113,
+        136,
+        179,
+        180
+      ]
+    },
+    {
+      "id": "colecao",
+      "file": "fanta-colecao-loop.mp4",
+      "codec": "h264",
+      "pixelFormat": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "fps": "30/1",
+      "duration": 8.0,
+      "decodedFrames": 240,
+      "allFramesAreKeyframes": true,
+      "faststart": true,
+      "audio": false,
+      "loopSeamMeanPixelDifference": 0.7553530335426331,
+      "loopSeamVsNeighborRatio": 0.9852096355048356,
+      "bytes": 26139665,
+      "sha256": "d052d04880e21c03327b11070caca3b5050c8416b77bb485376b9e5d4f74fcf9",
+      "visualReviewFrames": [
+        1,
+        31,
+        61,
+        91,
+        121,
+        151,
+        181,
+        239,
+        240
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "scene": "fanta-caju.blend",
+      "packedImages": 1,
+      "engine": "CYCLES",
+      "nativeResolution": [
+        1920,
+        1080
+      ],
+      "frameRange": [
+        1,
+        180
+      ],
+      "closedLoopMatrixMaxError": 1.7484555314695172e-07,
+      "minimumConservativeCanClearance": null,
+      "objects": 29,
+      "lidAttachedEveryFrame": true,
+      "minimumTopFacingCosine": 0.17006894488758917,
+      "topInsideFrameEveryFrame": true,
+      "minimumTopFrameBorderFraction": 0.12769818305969238
+    },
+    {
+      "scene": "fanta-colecao-halloween-2026.blend",
+      "packedImages": 6,
+      "engine": "CYCLES",
+      "nativeResolution": [
+        1920,
+        1080
+      ],
+      "frameRange": [
+        1,
+        240
+      ],
+      "closedLoopMatrixMaxError": 1.4730400584608795e-16,
+      "minimumConservativeCanClearance": 0.2645377288281674,
+      "objects": 136,
+      "lidAttachedEveryFrame": true,
+      "minimumTopFacingCosine": 0.11285088956356049,
+      "topInsideFrameEveryFrame": true,
+      "minimumTopFrameBorderFraction": 0.05277746915817261
+    },
+    {
+      "scene": "fanta-ghost-face-punch.blend",
+      "packedImages": 1,
+      "engine": "CYCLES",
+      "nativeResolution": [
+        1920,
+        1080
+      ],
+      "frameRange": [
+        1,
+        180
+      ],
+      "closedLoopMatrixMaxError": 1.7484555314695172e-07,
+      "minimumConservativeCanClearance": null,
+      "objects": 29,
+      "lidAttachedEveryFrame": true,
+      "minimumTopFacingCosine": 0.17006894488758917,
+      "topInsideFrameEveryFrame": true,
+      "minimumTopFrameBorderFraction": 0.12769818305969238
+    },
+    {
+      "scene": "fanta-guarana.blend",
+      "packedImages": 1,
+      "engine": "CYCLES",
+      "nativeResolution": [
+        1920,
+        1080
+      ],
+      "frameRange": [
+        1,
+        180
+      ],
+      "closedLoopMatrixMaxError": 1.7484555314695172e-07,
+      "minimumConservativeCanClearance": null,
+      "objects": 29,
+      "lidAttachedEveryFrame": true,
+      "minimumTopFacingCosine": 0.17006894488758917,
+      "topInsideFrameEveryFrame": true,
+      "minimumTopFrameBorderFraction": 0.12769818305969238
+    },
+    {
+      "scene": "fanta-laranja.blend",
+      "packedImages": 1,
+      "engine": "CYCLES",
+      "nativeResolution": [
+        1920,
+        1080
+      ],
+      "frameRange": [
+        1,
+        180
+      ],
+      "closedLoopMatrixMaxError": 1.7484555314695172e-07,
+      "minimumConservativeCanClearance": null,
+      "objects": 29,
+      "lidAttachedEveryFrame": true,
+      "minimumTopFacingCosine": 0.17006894488758917,
+      "topInsideFrameEveryFrame": true,
+      "minimumTopFrameBorderFraction": 0.12769818305969238
+    },
+    {
+      "scene": "fanta-maracuja.blend",
+      "packedImages": 1,
+      "engine": "CYCLES",
+      "nativeResolution": [
+        1920,
+        1080
+      ],
+      "frameRange": [
+        1,
+        180
+      ],
+      "closedLoopMatrixMaxError": 1.7484555314695172e-07,
+      "minimumConservativeCanClearance": null,
+      "objects": 29,
+      "lidAttachedEveryFrame": true,
+      "minimumTopFacingCosine": 0.17006894488758917,
+      "topInsideFrameEveryFrame": true,
+      "minimumTopFrameBorderFraction": 0.12769818305969238
+    },
+    {
+      "scene": "fanta-uva.blend",
+      "packedImages": 1,
+      "engine": "CYCLES",
+      "nativeResolution": [
+        1920,
+        1080
+      ],
+      "frameRange": [
+        1,
+        180
+      ],
+      "closedLoopMatrixMaxError": 1.7484555314695172e-07,
+      "minimumConservativeCanClearance": null,
+      "objects": 29,
+      "lidAttachedEveryFrame": true,
+      "minimumTopFacingCosine": 0.17006894488758917,
+      "topInsideFrameEveryFrame": true,
+      "minimumTopFrameBorderFraction": 0.12769818305969238
+    }
+  ],
+  "originalFilesPreserved": true,
+  "visualReview": "Quadros inicial, intermediários, penúltimo e final extraídos dos sete MP4 para inspeção; distribuição de água fixa e materiais estáticos; câmera e produto fecham o período.",
+  "limitations": "Frentes são recriações e não arquivos vetoriais oficiais. Laterais/versos sem documentação, mecânica ilustrativa. Tampa fixa nesta revisão."
+}
