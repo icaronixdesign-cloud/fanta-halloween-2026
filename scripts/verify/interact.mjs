@@ -61,7 +61,7 @@ await scrollToY(page, 0); await sleep(800); h = await heroState();
 ok(h.textO > 0.99, `hero de volta ao topo: chamada visível (${h.textO})`);
 // botões da chamada lado a lado; o secundário rola o hero até a vitrine e põe o foco na seta
 const ctas = await page.evaluate(() => [...document.querySelectorAll('.jack-hero__cta')].map((b) => { const r = b.getBoundingClientRect(); return { t: b.textContent.trim(), w: Math.round(r.width), y: Math.round(r.top) }; }));
-ok(ctas.length === 2 && ctas[0].w === ctas[1].w && ctas[0].y === ctas[1].y, `dois botões lado a lado, mesma largura (${JSON.stringify(ctas)})`);
+ok(ctas.length === 2 && ctas[0].y === ctas[1].y && ctas.every((c) => c.w < 300), `dois botões lado a lado, na largura do texto (${JSON.stringify(ctas)})`);
 await page.click('.jack-hero__cta.is-secondary'); await sleep(3800);
 pk = await pickState();
 const focused = await page.evaluate(() => document.activeElement?.getAttribute('aria-label'));
