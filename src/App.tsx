@@ -1,5 +1,5 @@
 import { ClosingSection } from './components/ClosingSection';
-import { CollectionHero } from './components/CollectionHero';
+import { JackHero } from './components/JackHero';
 import { FinalCta } from './components/FinalCta';
 import { FlavorShowcase } from './components/FlavorShowcase';
 import { Interlude } from './components/Interlude';
@@ -17,7 +17,7 @@ export function App() {
       </a>
       <SiteHeader reducedMotion={reducedMotion} />
       <main>
-        <CollectionHero reducedMotion={reducedMotion} finePointer={finePointer} />
+        <JackHero reducedMotion={reducedMotion} finePointer={finePointer} />
         <Interlude reducedMotion={reducedMotion} />
         <FlavorShowcase reducedMotion={reducedMotion} finePointer={finePointer} />
         <ClosingSection reducedMotion={reducedMotion} />

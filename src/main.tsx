@@ -5,6 +5,7 @@ import '@fontsource-variable/jetbrains-mono/index.css';
 import './styles/base.css';
 import './styles/media.css';
 import './styles/sections.css';
+import './styles/jack-hero.css';
 import { App } from './App';
 
 const root = document.getElementById('root');

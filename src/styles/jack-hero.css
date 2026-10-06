@@ -1,0 +1,414 @@
+/* ═══════════════════════════ HERO · JACK 3D ═══════════════════════════ */
+
+.jack-hero {
+  position: relative;
+  height: 380svh;
+}
+
+.jack-hero__stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  --text-x: 0;
+  --text-o: 1;
+  --end-o: 0;
+  /* luz quente vinda de cima, como no stack de referência */
+  background:
+    radial-gradient(70% 55% at 62% -8%, rgba(245, 99, 1, 0.42), rgba(245, 99, 1, 0.1) 45%, transparent 72%),
+    radial-gradient(40% 40% at 60% 38%, rgba(255, 120, 30, 0.08), transparent 70%),
+    #000;
+}
+
+.jack-hero__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 1.1s var(--ease-out),
+    transform 1.6s var(--ease-out);
+}
+
+.jack-hero__canvas-el {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* na vitrine, o arraste horizontal é do seletor; o vertical continua rolando a página */
+.jack-hero__stage[data-phase='pick'] .jack-hero__canvas {
+  touch-action: pan-y;
+}
+
+.jack-hero__stage:not([data-phase='intro']) .jack-hero__copy {
+  pointer-events: none;
+}
+
+.jack-hero__stage[data-state='ready'] .jack-hero__canvas {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------------- chamada ---------------- */
+
+.jack-hero__copy {
+  position: absolute;
+  z-index: 3;
+  left: var(--gutter);
+  top: 50%;
+  max-width: min(46vw, 640px);
+  opacity: var(--text-o);
+  transform: translate3d(calc(var(--text-x) * -42vw), -50%, 0);
+  will-change: transform, opacity;
+}
+
+.jack-hero__kicker {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  animation: jack-rise 0.9s var(--ease-out) 0.15s both;
+}
+
+.jack-hero__title {
+  display: grid;
+  margin-top: 14px;
+  font-weight: 900;
+  font-stretch: 100%;
+  text-transform: uppercase;
+  line-height: 0.84;
+  letter-spacing: -0.01em;
+  outline: none;
+}
+
+.jack-hero__line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.18em;
+}
+
+.jack-hero__word {
+  display: block;
+  animation: jack-rise 1s var(--ease-out) both;
+}
+
+.jack-hero__word.is-big {
+  font-size: clamp(64px, 9.2vw, 150px);
+}
+
+.jack-hero__line .jack-hero__word.is-big {
+  animation-delay: 0.22s;
+}
+
+.jack-hero__word.is-small {
+  padding-top: 0.42em;
+  font-size: clamp(22px, 2.6vw, 42px);
+  font-weight: 800;
+  animation-delay: 0.14s;
+}
+
+.jack-hero__cta {
+  margin-top: clamp(22px, 3.4vh, 40px);
+  height: 56px;
+  padding: 0 34px;
+  border-radius: 8px;
+  background: var(--cta-orange, #f56301);
+  color: #160900;
+  animation: jack-rise 1s var(--ease-out) 0.36s both;
+  transition:
+    background 0.25s ease,
+    transform 0.25s var(--ease-out);
+}
+
+.jack-hero__cta:hover {
+  background: #ff7a1f;
+  transform: translateY(-2px);
+}
+
+@keyframes jack-rise {
+  from {
+    opacity: 0;
+    transform: translateY(34%);
+    filter: blur(8px);
+  }
+}
+
+/* ---------------- fim do scroll ---------------- */
+
+/* vitrine: ‹ 05 / 06 · Fanta Laranja · Conhecer o sabor › */
+.jack-hero__picker {
+  --pick-accent: #ff8b3d;
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: calc(clamp(18px, 4svh, 40px) + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2.4vw, 32px);
+  transform: translate3d(-50%, calc((1 - var(--end-o)) * 18px), 0);
+  opacity: var(--end-o);
+  pointer-events: none;
+}
+
+.jack-hero__stage[data-phase='pick'] .jack-hero__picker {
+  pointer-events: auto;
+}
+
+.jack-hero__flavor {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: clamp(200px, 22vw, 300px);
+  text-align: center;
+}
+
+.jack-hero__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--pick-accent);
+  transition: color 0.4s ease;
+}
+
+.jack-hero__count span {
+  color: var(--ink-3);
+}
+
+.jack-hero__name {
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 860;
+  line-height: 1;
+  letter-spacing: -0.005em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: jack-name 0.55s var(--ease-out) both;
+}
+
+.jack-hero__name[data-dir='0'] {
+  animation: none;
+}
+
+.jack-hero__name[data-dir='-1'] {
+  --from: -26px;
+}
+
+@keyframes jack-name {
+  from {
+    opacity: 0;
+    transform: translateX(var(--from, 26px));
+    filter: blur(6px);
+  }
+}
+
+.jack-hero__more {
+  margin-top: 2px;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--pick-accent);
+  text-underline-offset: 5px;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+
+.jack-hero__more:hover {
+  color: var(--ink);
+}
+
+.jack-hero__actions {
+  display: flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.jack-hero__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+
+/* segurar para beber: sem seleção de texto nem menu de contexto no toque longo */
+.jack-hero__more.is-hold,
+.jack-hero__stage[data-phase='pick'] .jack-hero__canvas {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.jack-hero__more.is-hold {
+  touch-action: none;
+  text-decoration-style: dotted;
+}
+
+.jack-hero__stage[data-drinking='true'] .jack-hero__more.is-hold {
+  color: var(--pick-accent);
+  text-decoration-style: solid;
+}
+
+.jack-hero__arrow {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--ink);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition:
+    border-color 0.25s ease,
+    background-color 0.25s ease,
+    transform 0.25s var(--ease-out);
+}
+
+.jack-hero__arrow svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.jack-hero__arrow:hover {
+  border-color: var(--pick-accent);
+  background: color-mix(in srgb, var(--pick-accent) 16%, rgba(0, 0, 0, 0.4));
+}
+
+.jack-hero__arrow:active {
+  transform: scale(0.93);
+}
+
+.jack-hero__arrow:focus-visible,
+.jack-hero__more:focus-visible {
+  outline: 2px solid var(--pick-accent);
+  outline-offset: 3px;
+}
+
+.jack-hero__hint {
+  position: absolute;
+  z-index: 3;
+  left: var(--gutter);
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  opacity: var(--text-o);
+}
+
+.jack-hero__hint-line {
+  position: relative;
+  width: 1px;
+  height: 34px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.jack-hero__hint-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  animation: jack-hint 1.8s ease-in-out infinite;
+}
+
+@keyframes jack-hint {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* ---------------- retrato / celular: texto em cima, Jack embaixo ---------------- */
+
+@media (max-aspect-ratio: 23/20) {
+  .jack-hero__copy {
+    top: calc(var(--header-h) + 4svh);
+    right: var(--gutter);
+    max-width: none;
+    transform: translate3d(calc(var(--text-x) * -60vw), 0, 0);
+  }
+
+  .jack-hero__word.is-big {
+    font-size: min(17vw, 9.5svh);
+  }
+
+  .jack-hero__word.is-small {
+    font-size: min(6vw, 3.6svh);
+  }
+
+  .jack-hero__cta {
+    height: 50px;
+    margin-top: 18px;
+  }
+
+  .jack-hero__hint {
+    display: none;
+  }
+
+  .jack-hero__picker {
+    gap: 10px;
+  }
+
+  .jack-hero__flavor {
+    min-width: 0;
+    width: min(56vw, 240px);
+  }
+
+  .jack-hero__name {
+    font-size: clamp(19px, 5.6vw, 26px);
+  }
+
+  .jack-hero__actions {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .jack-hero__dot {
+    display: none;
+  }
+
+  .jack-hero__arrow {
+    width: 46px;
+    height: 46px;
+  }
+}
+
+/* ---------------- movimento reduzido ---------------- */
+
+.jack-hero[data-reduced='true'] {
+  height: auto;
+}
+
+.jack-hero[data-reduced='true'] .jack-hero__stage {
+  position: relative;
+  min-height: 100svh;
+}
+
+.jack-hero[data-reduced='true'] *,
+.jack-hero[data-reduced='true'] .jack-hero__canvas {
+  animation: none;
+  transition: none;
+}

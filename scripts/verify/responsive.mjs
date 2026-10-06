@@ -38,10 +38,11 @@ for (const vp of vps) {
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: !!vp.mobile, hasTouch: !!vp.mobile, deviceScaleFactor: 1 });
   const page = await ctx.newPage(); const log = []; track(page, log);
   await page.goto(BASE + '/?debug', { waitUntil: 'load' }); await sleep(1500);
-  const shots = [['colecao', 0, 'colecao'], ['colecao', 0.45, 'colecao'], ['colecao', 0.85, 'colecao'], ['sabores', 0.03 / 6, 'sabor:ghost-face-punch'], ['sabores', 3.5 / 6, 'sabor:uva'], ['sabores', 5.97 / 6, 'sabor:caju']];
+  await page.waitForFunction(() => document.querySelector('.jack-hero__stage')?.dataset.state === 'ready', null, { timeout: 30000 }).catch(() => {});
+  const shots = [['colecao', 0, null], ['colecao', 0.45, null], ['colecao', 0.85, null], ['sabores', 0.03 / 6, 'sabor:ghost-face-punch'], ['sabores', 3.5 / 6, 'sabor:uva'], ['sabores', 5.97 / 6, 'sabor:caju']];
   for (const [id, p, label] of shots) {
     await scrollToY(page, await sectionY(page, id, p)); await sleep(1300);
-    const s = await waitSettled(page, label, 8000);
+    const s = label ? await waitSettled(page, label, 8000) : null;
     const g = await page.evaluate(geomCheck);
     const tag = `${vp.name}-${id}-${p.toFixed(3)}`;
     await page.screenshot({ path: `${OUT}${tag}.png` });

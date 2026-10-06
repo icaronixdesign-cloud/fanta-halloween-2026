@@ -15,31 +15,51 @@ const blackCheck = (sel) => page.evaluate((sel) => {
 }, sel);
 const grab = (sel) => page.evaluate((sel) => { const v = document.querySelector(sel); const c = document.createElement('canvas'); c.width = 192; c.height = 108; const g = c.getContext('2d'); g.drawImage(v, 0, 0, 192, 108); return Array.from(g.getImageData(0, 0, 192, 108).data); }, sel);
 
-// 1. Hero: rolagem lenta, rápida e reversa com wheel real
-const heroTop = await sectionY(page, 'colecao', 0), heroEnd = await sectionY(page, 'colecao', 1);
-const expectFrame = (p) => Math.round(Math.min(1, Math.max(0, (p - 0.05) / 0.88)) * 239);
+// 1. Hero 3D (Jack): carrega, um único canvas WebGL, chamada sai com o scroll e volta ao topo
+const heroState = () => page.evaluate(() => {
+  const st = document.querySelector('.jack-hero__stage');
+  const cs = getComputedStyle(st);
+  const cv = st.querySelectorAll('canvas');
+  return { state: st.dataset.state, canvases: cv.length, w: cv[0]?.clientWidth, h: cv[0]?.clientHeight,
+    textO: +cs.getPropertyValue('--text-o'), endO: +cs.getPropertyValue('--end-o'), sticky: cs.position };
+});
+await page.waitForFunction(() => document.querySelector('.jack-hero__stage')?.dataset.state === 'ready', null, { timeout: 30000 });
+let h = await heroState();
+ok(h.state === 'ready' && h.canvases === 1 && h.w > 0 && h.h > 0 && h.sticky === 'sticky', `hero 3D pronto: ${JSON.stringify(h)}`);
 await page.mouse.move(720, 450);
 const playingDuring = new Set();
-for (let i = 0; i < 40; i++) { await page.mouse.wheel(0, 48); await sleep(45); (await playingVideos()).forEach((x) => playingDuring.add(x)); }
-let s = await waitSettled(page, 'colecao');
-let y = await page.evaluate(() => scrollY); let p = (y - heroTop) / (heroEnd - heroTop);
-ok(s.presentedFrame === expectFrame(p) && s.revealed, `hero lento: y=${y} esperado ${expectFrame(p)} apresentado ${s.presentedFrame} (rVFC ${s.lastFrameCallbackMediaTime}) buscas ${s.seeksIssued}/${s.seeksCompleted} timeouts ${s.seekTimeouts}`);
-ok(playingDuring.size === 0, `nenhum vídeo tocando durante scrub (${[...playingDuring]})`);
-for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 700); await sleep(30); }
-s = await waitSettled(page, 'colecao'); y = await page.evaluate(() => scrollY); p = (y - heroTop) / (heroEnd - heroTop);
-ok(s.presentedFrame === expectFrame(p), `hero rápido: p=${p.toFixed(3)} esperado ${expectFrame(p)} apresentado ${s.presentedFrame} timeouts ${s.seekTimeouts}`);
-for (let i = 0; i < 12; i++) { await page.mouse.wheel(0, -400); await sleep(25); }
-s = await waitSettled(page, 'colecao'); y = await page.evaluate(() => scrollY); p = (y - heroTop) / (heroEnd - heroTop);
-ok(s.presentedFrame === expectFrame(p), `hero reverso (wheel): p=${p.toFixed(3)} esperado ${expectFrame(p)} apresentado ${s.presentedFrame}`);
-await scrollToY(page, 0); s = await waitSettled(page, 'colecao');
-ok(s.presentedFrame === 0, `hero de volta ao topo: quadro ${s.presentedFrame} (rVFC ${s.lastFrameCallbackMediaTime}), modo ${s.mode}`);
-
-// 2. Prova de quadro por pixels (canvas do <video> x quadro extraído pelo ffmpeg)
+for (let i = 0; i < 60; i++) { await page.mouse.wheel(0, 60); await sleep(40); (await playingVideos()).forEach((x) => playingDuring.add(x)); }
+await sleep(400); h = await heroState();
+ok(h.textO < 0.5, `chamada saindo com o scroll (opacidade ${h.textO})`);
+ok(playingDuring.size === 0, `nenhum vídeo tocando durante o hero (${[...playingDuring]})`);
+await scrollToY(page, await sectionY(page, 'colecao', 1)); await sleep(800); h = await heroState();
+ok(h.endO > 0.9 && h.canvases === 1, `fim do hero: legenda final visível (${h.endO}), canvases ${h.canvases}`);
+// vitrine: seta, teclado e estado do seletor
+const pickName = () => page.evaluate(() => document.querySelector('.jack-hero__name')?.textContent.trim());
+const pickState = () => page.evaluate(() => { const st = document.querySelector('.jack-hero__stage'); const pk = document.querySelector('.jack-hero__picker'); return { phase: st.dataset.phase, inert: pk.inert }; });
+await scrollToY(page, await sectionY(page, 'colecao', 0.9)); await sleep(1200);
+let pk = await pickState();
+ok(pk.phase === 'pick' && !pk.inert && (await pickName()) === 'Fanta Laranja', `vitrine ativa com Laranja na mão (${JSON.stringify(pk)})`);
+await page.click('.jack-hero__arrow[aria-label="Próximo sabor"]'); await sleep(300);
+ok((await pickName()) === 'Fanta Caju', `seta → próximo sabor (${await pickName()})`);
+await sleep(2400); await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft'); await sleep(300);
+ok((await pickName()) === 'Fanta Uva', `teclado ← ← volta dois sabores (${await pickName()})`);
+await sleep(3000);
+// segurar sobre o Jack: bebe enquanto segura; soltar para; botão "Segure para um gole" pelo teclado
+const drinkState = () => page.evaluate(() => document.querySelector('.jack-hero__stage').dataset.drinking);
+await page.mouse.move(720, 380); await page.mouse.down(); await sleep(700);
+const held = await drinkState();
+await page.mouse.up(); await sleep(150);
+ok(held === 'true' && (await drinkState()) === 'false', `segurar no Jack bebe e soltar para (${held} → ${await drinkState()})`);
+await page.focus('.jack-hero__more.is-hold'); await page.keyboard.down('Space'); await sleep(400);
+const keyHeld = await drinkState();
+await page.keyboard.up('Space'); await sleep(150);
+ok(keyHeld === 'true' && (await drinkState()) === 'false', `gole pelo teclado (Espaço segurado) (${keyHeld} → ${await drinkState()})`);
+await scrollToY(page, await sectionY(page, 'colecao', 0.4)); await sleep(600); pk = await pickState();
+ok(pk.phase !== 'pick' && pk.inert, `fora da vitrine o seletor fica inerte (${JSON.stringify(pk)})`);
+await scrollToY(page, 0); await sleep(800); h = await heroState();
+ok(h.textO > 0.99, `hero de volta ao topo: chamada visível (${h.textO})`);
 const grabs = {};
-for (const fr of [0, 120, 239]) {
-  const pp = 0.05 + (fr / 239) * 0.88; await scrollToY(page, await sectionY(page, 'colecao', pp)); s = await waitSettled(page, 'colecao');
-  grabs['colecao-' + s.presentedFrame] = { presented: s.presentedFrame, px: await grab('.hero__video video') };
-}
 
 // 3. Início, meio e fim de cada sabor
 const flavors = ['ghost-face-punch', 'guarana', 'maracuja', 'uva', 'laranja', 'caju'];

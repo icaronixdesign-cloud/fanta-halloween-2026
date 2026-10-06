@@ -1,0 +1,104 @@
+{
+  "fps": 30,
+  "clips": {
+    "idle": {
+      "frames": 121,
+      "duration": 4.0,
+      "loop": true,
+      "events": {},
+      "stride": null
+    },
+    "idle_hold": {
+      "frames": 121,
+      "duration": 4.0,
+      "loop": true,
+      "events": {},
+      "stride": null
+    },
+    "wave": {
+      "frames": 73,
+      "duration": 2.4,
+      "loop": false,
+      "events": {},
+      "stride": null
+    },
+    "offer": {
+      "frames": 61,
+      "duration": 2.0,
+      "loop": false,
+      "events": {},
+      "stride": null
+    },
+    "offer_idle": {
+      "frames": 91,
+      "duration": 3.0,
+      "loop": true,
+      "events": {},
+      "stride": null
+    },
+    "cheers": {
+      "frames": 67,
+      "duration": 2.2,
+      "loop": false,
+      "events": {},
+      "stride": null
+    },
+    "swap": {
+      "frames": 73,
+      "duration": 2.4,
+      "loop": false,
+      "events": {
+        "swapLabel": 0.86
+      },
+      "stride": null
+    },
+    "toss": {
+      "frames": 73,
+      "duration": 2.4,
+      "loop": false,
+      "events": {
+        "release": 0.56,
+        "catch": 1.16
+      },
+      "stride": null
+    },
+    "walk": {
+      "frames": 31,
+      "duration": 1.0,
+      "loop": true,
+      "events": {},
+      "stride": 0.26
+    },
+    "walk_hold": {
+      "frames": 31,
+      "duration": 1.0,
+      "loop": true,
+      "events": {},
+      "stride": 0.26
+    },
+    "wave_hold": {
+      "frames": 73,
+      "duration": 2.4,
+      "loop": false,
+      "events": {},
+      "stride": null
+    },
+    "drink": {
+      "frames": 49,
+      "duration": 1.6,
+      "loop": true,
+      "events": {
+        "gulp1": 0.38,
+        "gulp2": 1.18
+      },
+      "stride": null
+    },
+    "drink_in": {
+      "frames": 25,
+      "duration": 0.8,
+      "loop": false,
+      "events": {},
+      "stride": null
+    }
+  }
+}
