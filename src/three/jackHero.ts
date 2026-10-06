@@ -53,14 +53,32 @@ const smooth = (a: number, b: number, x: number) => {
 };
 const damp = (a: number, b: number, lambda: number, dt: number) => a + (b - a) * (1 - Math.exp(-lambda * dt));
 
+/**
+ * Lugar de uma lata flutuante no quadro inicial. at: [x, y] na tela (-1…1); dist: distância da câmera (m);
+ * size: altura da lata na tela (fração da altura do quadro); roll: inclinação do eixo na tela (rad,
+ * + = topo para a esquerda); turn: quanto o rótulo vira para o lado (rad).
+ */
+interface Spot {
+  at: [number, number];
+  dist: number;
+  size: number;
+  roll: number;
+  turn: number;
+}
+
 interface Orbit {
   root: THREE.Object3D;
   anchor: THREE.Vector3;
+  /** Rótulo de frente para a câmera do quadro inicial. */
+  base: THREE.Quaternion;
+  spot: Spot;
   phase: number;
   scale: number;
   spinAxis: THREE.Vector3;
-  spin: number;
 }
+
+/** Altura da lata no GLB (m). */
+const CAN_H = 0.122;
 
 export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): Promise<JackHero> {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -130,33 +148,43 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
   setLabel(heldCan, labels[FLAVORS.indexOf('laranja')]);
   bones.prop_can.add(heldCan);
 
-  // ---------------------------------------------------------------- latas flutuando (uma por sabor)
-  // posições de partida como no stack de referência: cantos da tela, longe da chamada
-  // [x, y] na tela do quadro inicial (-1…1) e distância da câmera (m): perto = lata grande
-  // paisagem: cantos e bordas (cortadas pelo quadro), longe da chamada à esquerda e do rosto
-  const SCREEN_WIDE: [number, number, number][] = [
-    [-0.8, 0.8, 1.7], [-0.84, -0.8, 1.05], [0.1, 0.88, 1.6],
-    [1.04, 0.12, 1.25], [0.94, 0.74, 2.7], [1.08, -0.82, 1.05],
+  // ---------------------------------------------------------------- latas flutuando (as cinco fora da mão)
+  // Quadro inicial: o Jack segura a Laranja e as outras cinco flutuam em camadas de profundidade, cada uma
+  // com o rótulo para a câmera, o eixo inclinado e a tampa à mostra (lugares em `Spot`, mesma ordem de FLOATING)
+  const FLOATING = ['ghost-face-punch', 'maracuja', 'uva', 'guarana', 'caju'] as const;
+  // paisagem: alto à esquerda · pequena ao fundo, ao lado da chamada · gigante atrás da cabeça ·
+  // grande à frente, cortada embaixo · atrás da mão do Jack
+  const SPOTS_WIDE: Spot[] = [
+    { at: [-0.77, 0.63], dist: 1.7, size: 0.16, roll: 0.48, turn: -0.3 },
+    { at: [-0.13, 0.34], dist: 2.9, size: 0.15, roll: -0.34, turn: 0.32 },
+    { at: [0.72, 0.5], dist: 2.5, size: 0.4, roll: 0.54, turn: -0.22 },
+    { at: [-0.46, -0.76], dist: 0.95, size: 0.33, roll: 0.57, turn: 0.26 },
+    { at: [0.83, -0.56], dist: 1.9, size: 0.21, roll: -0.2, turn: -0.34 },
   ];
-  // retrato: a chamada ocupa o terço de cima; latas nas laterais e atrás do Jack
-  const SCREEN_TALL: [number, number, number][] = [
-    [-0.98, -0.05, 1.5], [-0.88, -0.86, 1.05], [0.98, -0.1, 1.45],
-    [0.9, -0.84, 1.15], [-0.4, -0.08, 3.2], [0.42, 0.06, 3.4],
+  // retrato: a chamada ocupa o terço de cima; latas nas bordas, atrás e à frente do Jack
+  const SPOTS_TALL: Spot[] = [
+    { at: [-0.88, -0.36], dist: 1.7, size: 0.11, roll: -0.36, turn: 0.3 },
+    { at: [0.44, 0.18], dist: 3.2, size: 0.065, roll: -0.3, turn: -0.3 },
+    { at: [0.86, -0.04], dist: 2.6, size: 0.2, roll: 0.5, turn: -0.22 },
+    { at: [-0.52, -0.86], dist: 0.95, size: 0.17, roll: 0.55, turn: 0.26 },
+    { at: [0.82, -0.66], dist: 1.8, size: 0.11, roll: -0.22, turn: -0.34 },
   ];
-  const orbits: Orbit[] = FLAVORS.map((_, i) => {
+  const PITCH = 0.42; // topo virado para a câmera: a tampa aparece
+  const orbits: Orbit[] = FLOATING.map((id, i) => {
     const root = new THREE.Group();
     const c = can.scene.clone(true);
-    setLabel(c, labels[i]);
-    c.position.y = -0.061; // gira em torno do centro da lata
+    setLabel(c, labels[FLAVORS.indexOf(id)]);
+    c.position.y = -CAN_H / 2; // gira em torno do centro da lata
     root.add(c);
     scene.add(root);
     return {
       root,
       anchor: new THREE.Vector3(),
+      base: new THREE.Quaternion(),
+      spot: SPOTS_WIDE[i],
       phase: i * 1.37,
-      scale: 1.15 + ((i * 53) % 5) * 0.1,
+      scale: 1,
       spinAxis: new THREE.Vector3(Math.sin(i * 1.7), 0.6, Math.cos(i * 2.3)).normalize(),
-      spin: 0.22 + (i % 4) * 0.07,
     };
   });
 
@@ -311,6 +339,10 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
   timer.connect(document);
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
+  const eCan = new THREE.Euler(0, 0, 0, 'ZXY'); // gira o rótulo, inclina a tampa e só então o eixo na tela
+  const m4 = new THREE.Matrix4();
+  const fwd = new THREE.Vector3();
+  let exitX = 0; // as latas saem para longe deste x (entre a câmera inicial e o Jack)
   const v = new THREE.Vector3();
   const camPos = new THREE.Vector3();
   const camTarget = new THREE.Vector3();
@@ -348,10 +380,12 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
     const wide = aspect > 1.15;
     const k = smooth(0.16, 0.74, prog);
     if (wide) {
-      // início: close baixo com o Jack à direita (texto à esquerda); fim: corpo inteiro centralizado,
-      // câmera mais baixa e afastada para a fileira de latas caber atrás dele
-      camPos.set(THREE.MathUtils.lerp(-0.42, 0, k), THREE.MathUtils.lerp(0.36, 0.34, k), THREE.MathUtils.lerp(1.55, 2.6, k));
-      camTarget.set(THREE.MathUtils.lerp(-0.42, 0, k), THREE.MathUtils.lerp(0.6, 0.38, k), 0);
+      // início: close baixo com o Jack à direita do centro (no mesmo ponto da tela em qualquer proporção;
+      // a chamada fica à esquerda); fim: corpo inteiro centralizado, câmera mais baixa e afastada para a
+      // fileira de latas caber atrás dele
+      const x0 = -THREE.MathUtils.clamp(0.151 * aspect, 0.17, 0.3);
+      camPos.set(THREE.MathUtils.lerp(x0, 0, k), THREE.MathUtils.lerp(0.33, 0.34, k), THREE.MathUtils.lerp(1.55, 2.6, k));
+      camTarget.set(THREE.MathUtils.lerp(x0, 0, k), THREE.MathUtils.lerp(0.57, 0.38, k), 0);
       camera.fov = 30;
     } else {
       // retrato: Jack embaixo, texto em cima; termina centralizado
@@ -382,11 +416,19 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
     pointerX = pointerY = time = 0;
     frameCamera(0);
     camera.updateMatrixWorld();
+    camera.getWorldDirection(fwd);
+    const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const spots = w / h > 1.15 ? SPOTS_WIDE : SPOTS_TALL;
     orbits.forEach((o, i) => {
-      const [sx, sy, dist] = (w / h > 1.15 ? SCREEN_WIDE : SCREEN_TALL)[i];
-      const dir = v.set(sx, sy, 0.5).unproject(camera).sub(camera.position).normalize();
-      o.anchor.copy(camera.position).addScaledVector(dir, dist);
+      const s = (o.spot = spots[i]);
+      const dir = v.set(s.at[0], s.at[1], 0.5).unproject(camera).sub(camera.position).normalize();
+      o.anchor.copy(camera.position).addScaledVector(dir, s.dist);
+      // escala que dá a altura pedida na tela, na profundidade da lata
+      o.scale = (s.size * 2 * s.dist * dir.dot(fwd) * tanHalf) / CAN_H;
+      // +z (frente do rótulo) apontando para a câmera
+      o.base.setFromRotationMatrix(m4.lookAt(camera.position, o.anchor, camera.up));
     });
+    exitX = camera.position.x / 2;
     // largura visível na profundidade da fileira, no quadro final: define o espaçamento das latas
     frameCamera(1);
     rowHalfW = (camera.position.z - ROW_Z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
@@ -520,20 +562,25 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
     halo.scale.setScalar(1.25 * (1 + wDrink * (0.12 + 0.25 * fill)));
     (halo.material as THREE.SpriteMaterial).opacity = Math.min(0.9, 0.5 * flick * glow);
 
-    // latas: deriva lenta em gravidade zero; no meio do scroll se afastam do Jack e passam pela câmera
+    // latas: deriva lenta em gravidade zero, balançando em volta da pose (o rótulo nunca dá as costas);
+    // no meio do scroll giram, se afastam do Jack e passam pela câmera
     const exit = smooth(0.16, 0.5, p);
+    const shrink = 1 - smooth(0.42, 0.56, p) * 0.999;
     for (const o of orbits) {
       const t = time * 0.5 + o.phase;
-      v.set(o.anchor.x + 0.2, o.anchor.y - 0.55, 0).normalize();
+      const s = o.spot;
+      const drift = s.dist / 1.6; // a mesma deriva na tela para a lata perto e a do fundo
+      v.set(o.anchor.x - exitX, o.anchor.y - 0.55, 0).normalize();
       o.root.position.set(
-        o.anchor.x + Math.sin(t * 0.7) * 0.05 + v.x * exit * 1.6,
-        o.anchor.y + Math.sin(t * 0.9 + 1.3) * 0.045 + v.y * exit * 1.1,
-        o.anchor.z + Math.cos(t * 0.6) * 0.04 + exit * exit * 1.6,
+        o.anchor.x + Math.sin(t * 0.7) * 0.03 * drift + v.x * exit * 1.6,
+        o.anchor.y + Math.sin(t * 0.9 + 1.3) * 0.028 * drift + v.y * exit * 1.1,
+        o.anchor.z + Math.cos(t * 0.6) * 0.03 * drift + exit * exit * 1.6,
       );
-      o.root.quaternion.setFromAxisAngle(o.spinAxis, time * o.spin + o.phase + exit * 3.2);
-      const s = o.scale * (1 - smooth(0.42, 0.56, p) * 0.999);
-      o.root.scale.setScalar(s);
-      o.root.visible = s > 0.01;
+      eCan.set(PITCH + Math.sin(t * 0.8) * 0.06, s.turn + Math.sin(t * 0.55 + 0.7) * 0.26, s.roll + Math.sin(t * 0.65 + 2.1) * 0.05);
+      o.root.quaternion.copy(o.base).multiply(q.setFromEuler(eCan));
+      if (exit > 0) o.root.quaternion.premultiply(q.setFromAxisAngle(o.spinAxis, exit * 3.2));
+      o.root.scale.setScalar(o.scale * shrink);
+      o.root.visible = o.scale * shrink > 0.01;
     }
 
     // vitrine: cada lata entra pela esquerda, uma por vez (a que vai mais longe primeiro, passando atrás

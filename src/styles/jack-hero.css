@@ -21,6 +21,21 @@
     #000;
 }
 
+/* quadro inicial: luz quente do alto à esquerda, sobre a chamada, e névoa fria à direita; some com a
+   saída da chamada e revela a luz do resto da sequência */
+.jack-hero__stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(34% 50% at 26% 2%, rgb(184, 104, 76), rgba(160, 86, 62, 0.82) 24%, rgba(112, 58, 44, 0.5) 50%, rgba(62, 32, 26, 0.2) 76%, transparent),
+    radial-gradient(36% 42% at 92% 0%, rgba(72, 78, 92, 0.95), rgba(52, 56, 66, 0.5) 45%, rgba(30, 32, 38, 0.15) 75%, transparent),
+    #000;
+  opacity: calc(1 - var(--text-x));
+  pointer-events: none;
+}
+
 .jack-hero__canvas {
   position: absolute;
   inset: 0;
@@ -59,37 +74,34 @@
   position: absolute;
   z-index: 3;
   left: var(--gutter);
-  top: 50%;
-  max-width: min(46vw, 640px);
+  top: 48%;
+  max-width: 56vw;
   opacity: var(--text-o);
   transform: translate3d(calc(var(--text-x) * -42vw), -50%, 0);
   will-change: transform, opacity;
 }
 
 .jack-hero__kicker {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
+  font-size: clamp(12px, 1.05vw, 16px);
+  font-weight: 560;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: #efcd91;
   animation: jack-rise 0.9s var(--ease-out) 0.15s both;
 }
 
+/* duas linhas do mesmo corpo; os botões ocupam a largura da linha mais longa */
 .jack-hero__title {
   display: grid;
-  margin-top: 14px;
+  margin-top: clamp(14px, 2.2vh, 24px);
+  font-size: clamp(52px, 6.7vw, 128px);
   font-weight: 900;
-  font-stretch: 100%;
+  font-stretch: 92%;
   text-transform: uppercase;
-  line-height: 0.84;
-  letter-spacing: -0.01em;
+  line-height: 1.04;
+  letter-spacing: -0.008em;
+  white-space: nowrap;
   outline: none;
-}
-
-.jack-hero__line {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.18em;
 }
 
 .jack-hero__word {
@@ -97,37 +109,50 @@
   animation: jack-rise 1s var(--ease-out) both;
 }
 
-.jack-hero__word.is-big {
-  font-size: clamp(64px, 9.2vw, 150px);
-}
-
-.jack-hero__line .jack-hero__word.is-big {
-  animation-delay: 0.22s;
-}
-
-.jack-hero__word.is-small {
-  padding-top: 0.42em;
-  font-size: clamp(22px, 2.6vw, 42px);
-  font-weight: 800;
+.jack-hero__word + .jack-hero__word {
   animation-delay: 0.14s;
 }
 
+.jack-hero__ctas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(12px, 1.4vw, 22px);
+  margin-top: clamp(20px, 3.6vh, 40px);
+  animation: jack-rise 1s var(--ease-out) 0.3s both;
+}
+
 .jack-hero__cta {
-  margin-top: clamp(22px, 3.4vh, 40px);
-  height: 56px;
-  padding: 0 34px;
-  border-radius: 8px;
+  height: clamp(50px, 5.6vh, 58px);
+  padding: 0 20px;
+  border-radius: 6px;
   background: var(--cta-orange, #f56301);
   color: #160900;
-  animation: jack-rise 1s var(--ease-out) 0.36s both;
   transition:
     background 0.25s ease,
+    border-color 0.25s ease,
     transform 0.25s var(--ease-out);
 }
 
 .jack-hero__cta:hover {
   background: #ff7a1f;
   transform: translateY(-2px);
+}
+
+.jack-hero__cta.is-secondary {
+  border-color: rgba(244, 241, 234, 0.1);
+  background: rgba(20, 20, 20, 0.88);
+  color: var(--ink);
+  backdrop-filter: blur(8px);
+}
+
+.jack-hero__cta.is-secondary:hover {
+  border-color: rgba(244, 241, 234, 0.32);
+  background: #1d1d1d;
+}
+
+.jack-hero__cta:focus-visible {
+  outline: 2px solid #efcd91;
+  outline-offset: 3px;
 }
 
 @keyframes jack-rise {
@@ -351,17 +376,18 @@
     transform: translate3d(calc(var(--text-x) * -60vw), 0, 0);
   }
 
-  .jack-hero__word.is-big {
-    font-size: min(17vw, 9.5svh);
+  .jack-hero__title {
+    font-size: min(13vw, 7.2svh);
   }
 
-  .jack-hero__word.is-small {
-    font-size: min(6vw, 3.6svh);
+  .jack-hero__ctas {
+    gap: 10px;
+    margin-top: 18px;
   }
 
   .jack-hero__cta {
     height: 50px;
-    margin-top: 18px;
+    padding: 0 12px;
   }
 
   .jack-hero__hint {

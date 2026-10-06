@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { flavorById } from '../data/products';
 import { useInView, useScrollProgress } from '../interaction/hooks';
-import { goToFlavor, goToSection } from '../interaction/navigation';
+import { glideTo, goToFlavor, goToSection } from '../interaction/navigation';
 import type { JackHero as Scene } from '../three/jackHero';
 
 /**
@@ -53,6 +53,27 @@ export function JackHero({ reducedMotion, finePointer }: Props) {
     if (stage) stage.dataset.drinking = String(drinking);
     return drinking;
   }, []);
+
+  // botão secundário: rola o hero inteiro até a vitrine (o Jack gira e as latas entram no caminho) e põe o
+  // foco no seletor; sem movimento não há vitrine, então vai para a coleção no fim da página
+  const showCollection = useCallback(() => {
+    const section = sectionRef.current;
+    const stage = stageRef.current;
+    if (reducedMotion || !section || !stage) {
+      goToSection('sobre', reducedMotion);
+      return;
+    }
+    const top = section.getBoundingClientRect().top + window.scrollY;
+    glideTo(top + (section.offsetHeight - stage.offsetHeight) * 0.9, 3000, () => {
+      let frames = 0;
+      const focus = () => {
+        const picker = pickerRef.current;
+        if (picker && !picker.inert) picker.querySelectorAll<HTMLElement>('.jack-hero__arrow')[1]?.focus({ preventScroll: true });
+        else if (++frames < 30) requestAnimationFrame(focus);
+      };
+      focus();
+    });
+  }, [reducedMotion]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -217,22 +238,31 @@ export function JackHero({ reducedMotion, finePointer }: Props) {
         <div className="jack-hero__copy">
           <p className="jack-hero__kicker">Seis sabores · seis personagens</p>
           <h1 id="hero-title" className="jack-hero__title" tabIndex={-1} data-section-focus>
-            <span className="jack-hero__word is-big">Escolha</span>
-            <span className="jack-hero__line">
-              <span className="jack-hero__word is-small">o seu</span>
-              <span className="jack-hero__word is-big">susto</span>
-            </span>
+            <span className="jack-hero__word">Escolha</span>
+            <span className="jack-hero__word">o seu susto</span>
           </h1>
-          <a
-            className="button jack-hero__cta"
-            href="#sabores"
-            onClick={(event) => {
-              event.preventDefault();
-              goToSection('sabores', reducedMotion);
-            }}
-          >
-            Explore os sabores
-          </a>
+          <div className="jack-hero__ctas">
+            <a
+              className="button jack-hero__cta"
+              href="#sabores"
+              onClick={(event) => {
+                event.preventDefault();
+                goToSection('sabores', reducedMotion);
+              }}
+            >
+              Explore os sabores
+            </a>
+            <a
+              className="button jack-hero__cta is-secondary"
+              href="#sobre"
+              onClick={(event) => {
+                event.preventDefault();
+                showCollection();
+              }}
+            >
+              Ver a coleção
+            </a>
+          </div>
         </div>
 
         {!reducedMotion && flavor && (
