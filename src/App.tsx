@@ -1,5 +1,4 @@
 import { JackHero } from './components/JackHero';
-import { FinalCta } from './components/FinalCta';
 import { FinalShelf } from './components/FinalShelf';
 import { FlavorShowcase } from './components/FlavorShowcase';
 import { Interlude } from './components/Interlude';
@@ -20,7 +19,6 @@ export function App() {
         <JackHero reducedMotion={reducedMotion} finePointer={finePointer} />
         <Interlude reducedMotion={reducedMotion} />
         <FlavorShowcase reducedMotion={reducedMotion} finePointer={finePointer} />
-        <FinalCta reducedMotion={reducedMotion} />
         <FinalShelf reducedMotion={reducedMotion} finePointer={finePointer} />
       </main>
       <footer className="site-footer">

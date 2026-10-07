@@ -28,10 +28,10 @@ await page.click('.icon-button.is-play'); await sleep(800);
 await scrollToY(page, await sectionY(page, 'colecao', 0.5)); await sleep(1200);
 const snaps = await page.evaluate(() => window.__fantaDebug.snapshot().map((c) => ({ l: c.label, active: c.active, paused: c.paused, mode: c.mode })));
 ok(snaps.every((c) => !c.active && c.paused), `fora das seções de vídeo: ${JSON.stringify(snaps.filter((c) => c.active || !c.paused))} ativos/tocando`);
-// Fim da página: só a CTA ativa, pausada (scrub), sem reprodução
+// Fim da página: nenhum vídeo tocando (os sabores logo acima podem seguir carregados, pausados)
 await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })); await sleep(1200);
 const endSnaps = await page.evaluate(() => window.__fantaDebug.snapshot().map((c) => ({ l: c.label, active: c.active, paused: c.paused, mode: c.mode })));
-ok(endSnaps.every((c) => c.paused && (c.l === 'cta' ? c.mode === 'scroll' : !c.active)), `fim da página: ${JSON.stringify(endSnaps.filter((c) => c.active || !c.paused))} ativos/tocando`);
+ok(endSnaps.every((c) => c.paused), `fim da página: ${JSON.stringify(endSnaps.filter((c) => c.active || !c.paused))} ativos/tocando`);
 const before = await page.evaluate(() => window.__fantaDebug.snapshot().reduce((a, c) => a + c.seeksIssued, 0));
 for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 200); await sleep(60); }
 const after = await page.evaluate(() => window.__fantaDebug.snapshot().reduce((a, c) => a + c.seeksIssued, 0));

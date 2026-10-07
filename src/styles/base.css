@@ -306,13 +306,6 @@ input[type='range']:focus-visible {
     opacity 0.4s ease;
 }
 
-/* some durante o vídeo da CTA (FinalCta); com o foco do teclado dentro dele, volta */
-:root[data-header='hidden'] .site-header:not(:focus-within) {
-  transform: translateY(calc(-100% - 90px));
-  opacity: 0;
-  pointer-events: none;
-}
-
 /* vidro leve: desfoca o que passa por baixo e some na borda de baixo, sem linha nenhuma */
 .site-header::before {
   content: '';
