@@ -1,6 +1,7 @@
 import { ClosingSection } from './components/ClosingSection';
 import { JackHero } from './components/JackHero';
 import { FinalCta } from './components/FinalCta';
+import { FinalShelf } from './components/FinalShelf';
 import { FlavorShowcase } from './components/FlavorShowcase';
 import { Interlude } from './components/Interlude';
 import { SiteHeader } from './components/SiteHeader';
@@ -22,6 +23,7 @@ export function App() {
         <FlavorShowcase reducedMotion={reducedMotion} finePointer={finePointer} />
         <ClosingSection reducedMotion={reducedMotion} />
         <FinalCta reducedMotion={reducedMotion} />
+        <FinalShelf reducedMotion={reducedMotion} finePointer={finePointer} />
       </main>
       <footer className="site-footer">
         <p>Fanta Halloween 2026 · apresentação conceitual, não oficial.</p>

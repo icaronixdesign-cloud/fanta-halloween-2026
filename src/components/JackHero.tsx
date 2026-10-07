@@ -181,6 +181,9 @@ export function JackHero({ reducedMotion, finePointer }: Props) {
       if (phaseRef.current !== 'pick' || event.altKey || event.ctrlKey || event.metaKey) return;
       if ((event.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      // depois do hero o progresso fica em 1 (fase 'pick'): sem o palco na tela, as setas são de outra seção
+      const box = stageRef.current?.getBoundingClientRect();
+      if (!box || box.bottom <= 0 || box.top >= window.innerHeight) return;
       event.preventDefault();
       go(event.key === 'ArrowRight' ? 1 : -1);
     };

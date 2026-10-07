@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { FLAVOR_ACCENT, FLAVOR_GLOW, FLAVOR_IDS, damp, radialTexture, setLabel, smooth } from './common';
 
 /**
  * Hero 3D: o Jack (abóbora) em gravidade zero, cercado pelas seis latas da coleção.
@@ -16,11 +17,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
  */
 
 const BASE = '/media/jack/';
-/** Mesma ordem de FLAVORS em src/data/products.ts; é também a ordem da fileira, da esquerda para a direita. */
-export const HERO_FLAVORS = ['ghost-face-punch', 'guarana', 'maracuja', 'uva', 'laranja', 'caju'] as const;
+export const HERO_FLAVORS = FLAVOR_IDS;
 const FLAVORS = HERO_FLAVORS;
-const FLAVOR_GLOW = [0xa7466d, 0x268656, 0xa48148, 0x7055a5, 0xaf5f44, 0xa94a42];
-const FLAVOR_ACCENT = [0xff5fae, 0x52dd74, 0xf7c653, 0xac85ff, 0xff8b3d, 0xff5d4d];
 /** A partir daqui a vitrine aceita trocas. */
 export const PICK_FROM = 0.8;
 
@@ -46,12 +44,6 @@ interface Options {
   /** Sabor escolhido (índice em HERO_FLAVORS), avisado no gesto, antes da troca terminar. */
   onSelect?: (index: number) => void;
 }
-
-const smooth = (a: number, b: number, x: number) => {
-  const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1);
-  return t * t * (3 - 2 * t);
-};
-const damp = (a: number, b: number, lambda: number, dt: number) => a + (b - a) * (1 - Math.exp(-lambda * dt));
 
 /**
  * Lugar de uma lata flutuante no quadro inicial. at: [x, y] na tela (-1…1); dist: distância da câmera (m);
@@ -752,33 +744,4 @@ interface Shelf {
 }
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-/** Troca o rótulo; na primeira vez clona o material (as latas clonadas compartilham o original). */
-function setLabel(root: THREE.Object3D, map: THREE.Texture, clone = true) {
-  root.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const m = mesh.material as THREE.MeshPhysicalMaterial;
-    if (m.name === 'Fanta_Label') {
-      const target = clone ? m.clone() : m;
-      target.map = map;
-      mesh.material = target;
-    }
-  });
-}
-
-function radialTexture(): THREE.Texture {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const g = c.getContext('2d')!;
-  const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grd.addColorStop(0, 'rgba(255,255,255,1)');
-  grd.addColorStop(0.35, 'rgba(255,255,255,0.35)');
-  grd.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, 128, 128);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
 

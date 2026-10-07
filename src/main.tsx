@@ -6,6 +6,7 @@ import './styles/base.css';
 import './styles/media.css';
 import './styles/sections.css';
 import './styles/jack-hero.css';
+import './styles/final-shelf.css';
 import { App } from './App';
 
 const root = document.getElementById('root');

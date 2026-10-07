@@ -99,6 +99,20 @@
       "loop": false,
       "events": {},
       "stride": null
+    },
+    "carry": {
+      "frames": 121,
+      "duration": 4.0,
+      "loop": true,
+      "events": {},
+      "stride": null
+    },
+    "carry_walk": {
+      "frames": 25,
+      "duration": 0.8,
+      "loop": true,
+      "events": {},
+      "stride": 0.24
     }
   }
 }
