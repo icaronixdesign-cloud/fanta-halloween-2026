@@ -10,15 +10,15 @@ const geomCheck = () => {
   const out = [];
   const vis = (el) => { if (!el) return false; const cs = getComputedStyle(el); return cs.visibility !== 'hidden' && cs.display !== 'none' && +cs.opacity > 0.05; };
   const frames = [...document.querySelectorAll('.framed-video')].filter((f) => {
-    const r = f.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight && (f.classList.contains('hero__video') || f.classList.contains('is-current') || f.classList.contains('closing__image'));
+    const r = f.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight && (f.classList.contains('hero__video') || f.classList.contains('is-current'));
   });
   for (const f of frames) {
     const r = f.getBoundingClientRect();
     const s = f.classList.contains('showcase__layer') ? SAFE.flavor : SAFE.colecao;
     const safe = { l: r.left + s[0] * r.width, r: r.left + s[1] * r.width, t: r.top + s[2] * r.height, b: r.top + s[3] * r.height };
-    const stage = f.closest('.hero__stage, .showcase__stage, .closing__frame').getBoundingClientRect();
+    const stage = f.closest('.hero__stage, .showcase__stage').getBoundingClientRect();
     const inside = safe.l >= stage.left - 0.5 && safe.r <= stage.right + 0.5 && safe.t >= stage.top - 0.5 && safe.b <= stage.bottom + 0.5;
-    const blockers = [...f.closest('.hero__stage, .showcase__stage, .closing')?.querySelectorAll('.hero__caption, .hero__chips, .hero__footer .button, .hero__labels li, .showcase__intro, .showcase__panel, .site-header') || []];
+    const blockers = [...f.closest('.hero__stage, .showcase__stage')?.querySelectorAll('.hero__caption, .hero__chips, .hero__footer .button, .hero__labels li, .showcase__intro, .showcase__panel, .site-header') || []];
     const hits = [];
     const header = document.querySelector('.site-header').getBoundingClientRect();
     for (const b of [...blockers, document.querySelector('.site-header .button')]) {
@@ -48,9 +48,8 @@ for (const vp of vps) {
     await page.screenshot({ path: `${OUT}${tag}.png` });
     console.log(tag, 'frame', s?.targetFrame, '/', s?.presentedFrame, s?.loadState, 'ovX', g.overflowX, JSON.stringify(g.out.map((o) => ({ f: o.frame, inside: o.inside, hits: o.hits, safe: o.safe }))));
   }
-  await scrollToY(page, await page.evaluate(() => document.getElementById('sobre').getBoundingClientRect().top + scrollY + innerHeight * 0.55)); await sleep(1200);
-  await page.screenshot({ path: `${OUT}${vp.name}-closing.png` });
-  console.log(vp.name, 'closing', JSON.stringify((await page.evaluate(geomCheck)).out));
+  await scrollToY(page, await page.evaluate(() => document.getElementById('vitrine').getBoundingClientRect().top + scrollY)); await sleep(2500);
+  await page.screenshot({ path: `${OUT}${vp.name}-vitrine.png` });
   await scrollToY(page, await page.evaluate(() => document.querySelector('.interlude').getBoundingClientRect().top + scrollY - innerHeight * 0.2)); await sleep(600);
   await page.screenshot({ path: `${OUT}${vp.name}-interlude.png` });
   console.log(vp.name, 'LOG', log);

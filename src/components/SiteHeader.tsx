@@ -4,7 +4,7 @@ import { goToSection } from '../interaction/navigation';
 const LINKS = [
   { id: 'colecao', label: 'Coleção' },
   { id: 'sabores', label: 'Sabores' },
-  { id: 'sobre', label: 'Sobre' },
+  { id: 'vitrine', label: 'Vitrine' },
 ];
 
 interface Props {

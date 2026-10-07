@@ -55,12 +55,12 @@ export function JackHero({ reducedMotion, finePointer }: Props) {
   }, []);
 
   // botão secundário: rola o hero inteiro até a vitrine (o Jack gira e as latas entram no caminho) e põe o
-  // foco no seletor; sem movimento não há vitrine, então vai para a coleção no fim da página
+  // foco no seletor; sem movimento não há vitrine no hero, então vai para a vitrine final da página
   const showCollection = useCallback(() => {
     const section = sectionRef.current;
     const stage = stageRef.current;
     if (reducedMotion || !section || !stage) {
-      goToSection('sobre', reducedMotion);
+      goToSection('vitrine', reducedMotion);
       return;
     }
     const top = section.getBoundingClientRect().top + window.scrollY;
@@ -257,7 +257,7 @@ export function JackHero({ reducedMotion, finePointer }: Props) {
             </a>
             <a
               className="button jack-hero__cta is-secondary"
-              href="#sobre"
+              href="#vitrine"
               onClick={(event) => {
                 event.preventDefault();
                 showCollection();

@@ -15,8 +15,11 @@ export const TURN_FRAMES = 180;
 export const BACK_FRAME = 90;
 /** Velocidade de giro de frente ÷ velocidade de costas. */
 const DWELL_RATIO = 0.06;
-/** Meia-largura, em capítulos, do cruzamento entre as duas latas na troca. */
-export const SWAP_HALF = 0.05;
+/**
+ * Meia-largura, em capítulos, do cruzamento entre as duas latas na troca. Curta de propósito: é o único trecho com
+ * dois vídeos na tela, e cada um a mais por quadro custa uma decodificação de 1080p.
+ */
+export const SWAP_HALF = 0.03;
 /** Trecho fora do palco preso em que a 1ª lata entra girando (e a última sai). */
 export const EDGE_SPAN = 0.5;
 

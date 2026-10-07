@@ -6,7 +6,7 @@ import { preloadPoster } from '../media/posterCache';
 import { registerProbe } from '../media/debug';
 import type { ControlMode, LoadState, PreloadHint, ScrubVideoController } from '../media/ScrubVideoController';
 import { attachDragRotate } from '../interaction/dragRotate';
-import { clampChapter, facingFor, frameAt, poseAt } from '../interaction/flavorTimeline';
+import { SWAP_HALF, clampChapter, facingFor, frameAt, poseAt } from '../interaction/flavorTimeline';
 import {
   useElementSize,
   useInView,
@@ -16,6 +16,7 @@ import {
 } from '../interaction/hooks';
 import { cutTo, glideTo, registerFlavorNavigator, type FlavorNavigateOptions } from '../interaction/navigation';
 import { scrollEngine, scrollYForProgress } from '../interaction/scrollEngine';
+import type { JackAdmirer } from '../three/jackAdmirer';
 import { FlavorWorld, type FlavorWorldHandle } from './FlavorWorld';
 import { FramedVideo } from './FramedVideo';
 
@@ -30,19 +31,23 @@ import { FramedVideo } from './FramedVideo';
 
 const COUNT = FLAVORS.length;
 const MAX_LOADED_VIDEOS = 3;
-const SETTLE_MS = 160;
-/** Constante de tempo da suavização do capítulo (ms): inércia sem prender a página. */
-const SMOOTHING_MS = 110;
+/** Vídeo dos vizinhos só depois de uma pausa na rolagem: carregar no meio de uma troca engasga a GPU. */
+const SETTLE_MS = 350;
+/**
+ * O capítulo segue a rolagem por uma mola criticamente amortecida (rad/s): a velocidade da lata nunca dá salto, então
+ * os "cliques" da roda viram um giro contínuo, que acelera e freia sozinho (63% do caminho em ~0,17 s, sem passar).
+ */
+const SPRING = 13;
 /** Saltos maiores que isto (capítulos) não são suavizados: corte ou seleção distante. */
 const SNAP_CHAPTERS = 1.25;
 /** Deslizamento até o sabor vizinho (ms por capítulo). */
 const GLIDE_MS = 1150;
 const NAME_EXIT_MS = 720;
 /**
- * O texto troca um pouco antes do meio do cruzamento, no sentido da rolagem (a cor nova dos
- * respingos aparece cedo). Parado dentro dessa faixa, mantém o que já está: sem pisca-pisca.
+ * O texto troca no fim do cruzamento, no sentido da rolagem: nome e número novos são rasterizados fora da janela em
+ * que há dois vídeos na tela (os dois juntos estouram o quadro). Parado dentro dessa faixa, mantém o que já está.
  */
-const TEXT_LEAD = 0.025;
+const TEXT_LEAD = -(SWAP_HALF - 0.002);
 
 function textIndexFor(cf: number, velocity: number, current: number): number {
   const ahead = clamp(Math.floor(cf + TEXT_LEAD), 0, COUNT - 1);
@@ -112,6 +117,12 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
   const sliderRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLHeadingElement>(null);
   const worldRef = useRef<FlavorWorldHandle>(null);
+  const jackMountRef = useRef<HTMLDivElement>(null);
+  const mediaRef = useRef<HTMLDivElement>(null);
+  /** Últimos valores escritos por quadro: escrever o mesmo valor de novo ainda invalida o estilo. */
+  const written = useRef({ tick: 0, woken: -1, q: '', push: '', turn: '', layers: Array.from({ length: COUNT }, () => ({ o: '', v: '', z: '', f: '' })) });
+  const jackRef = useRef<JackAdmirer | null>(null);
+  const cueLearned = useRef(false);
 
   const wide = useWideLayout();
   const stageSize = useElementSize(stageRef);
@@ -198,6 +209,7 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
   const applyPose = useCallback(
     (cf: number, velocity: number) => {
       const pose = poseAt(cf, COUNT);
+      const tick = (written.current.tick += 1);
       const stage = stageRef.current;
       for (let index = 0; index < COUNT; index++) {
         const element = layerElements.current[index];
@@ -217,23 +229,52 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
           z = 2;
         }
         const visible = opacity > 0.001;
-        element.style.opacity = visible ? opacity.toFixed(3) : '0';
-        element.style.visibility = visible ? 'visible' : 'hidden';
-        element.style.zIndex = String(z);
+        const last = written.current.layers[index];
+        const o = visible ? opacity.toFixed(3) : '0';
+        const vis = visible ? 'visible' : 'hidden';
+        const zi = String(z);
+        if (last.o !== o) element.style.opacity = last.o = o;
+        if (last.v !== vis) element.style.visibility = last.v = vis;
+        if (last.z !== zi) element.style.zIndex = last.z = zi;
         if (!visible) continue;
         const frame = frameAt(index, cf, COUNT);
-        element.dataset.facing = facingFor(frame);
+        const facing = facingFor(frame);
+        if (last.f !== facing) element.dataset.facing = last.f = facing;
         const controller = controllers.current[index];
         if (!controller) continue;
         // A troca acontece pelo scroll: reprodução contínua do sabor que sai é encerrada.
         if (pose.swap && controller.getMode() === 'play') controller.pause();
+        // No cruzamento as duas latas se revezam: cada vídeo busca um quadro sim, outro não, e a GPU decodifica um
+        // só por quadro (de costas, a 30 quadros/s cada, a diferença não aparece). Parada a rolagem, ambas assentam.
+        if (pose.swap && velocity !== 0 && tick % 2 !== (index === pose.swap.over ? 1 : 0)) continue;
         controller.setScrollFrame(frame);
       }
-      if (stage) {
-        stage.style.setProperty('--q', pose.local.toFixed(4));
-        stage.style.setProperty('--sp', clamp(cf / COUNT, 0, 1).toFixed(4));
-        stage.style.setProperty('--push', (1 - smoothstep(0, 0.22, Math.abs(pose.toSwap))).toFixed(4));
+      // acorda o decodificador do vídeo que vai entrar: uma busca só, um pouco antes do cruzamento (parado há tempo,
+      // a primeira decodificação dele custa ~20 ms e cairia bem no meio da troca)
+      if (!pose.swap && Math.abs(pose.toSwap) < 0.18) {
+        const boundary = Math.round(cf);
+        const below = cf < boundary;
+        const incoming = below ? boundary : boundary - 1;
+        const key = boundary * 2 + (below ? 1 : 0);
+        if (written.current.woken !== key) {
+          written.current.woken = key;
+          controllers.current[incoming]?.setScrollFrame(frameAt(incoming, boundary + (below ? -SWAP_HALF : SWAP_HALF), COUNT));
+        }
       }
+      // a dica de rolagem some de vez quando a pessoa passa do 1º sabor
+      if (cf > 1.1) cueLearned.current = true;
+      jackRef.current?.setShown(cf > -0.3 && cf < COUNT + 0.3);
+      if (stage) {
+        const cue = !cueLearned.current && cf > -0.4 && cf < 0.8 ? 'on' : 'off';
+        if (stage.dataset.cue !== cue) stage.dataset.cue = cue;
+      }
+      // cada variável só no elemento que a usa: escrita no palco, ela seria herdada por centenas de filhos e o
+      // navegador recalcularia o estilo de todos a cada quadro da rolagem
+      const w = written.current;
+      const q = pose.local.toFixed(3);
+      if (w.q !== q) topRef.current?.style.setProperty('--q', (w.q = q));
+      const push = (1 - smoothstep(0, 0.22, Math.abs(pose.toSwap))).toFixed(3);
+      if (w.push !== push) mediaRef.current?.style.setProperty('--push', (w.push = push));
       worldRef.current?.setPose(cf, velocity);
       const textIndex = textIndexFor(cf, velocity, displayedRef.current);
       if (textIndex !== displayedRef.current) commitDisplayed(textIndex);
@@ -249,10 +290,18 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
       state.raf = 0;
       const dt = state.last ? Math.min(64, now - state.last) : 16;
       state.last = now;
-      const previous = state.current;
-      let next = previous + (state.target - previous) * (1 - Math.exp(-dt / SMOOTHING_MS));
-      if (Math.abs(state.target - next) < 0.0004) next = state.target;
-      state.velocity = (next - previous) / (dt / 1000);
+      let next = state.current;
+      let speed = state.velocity;
+      for (let left = dt / 1000; left > 0; left -= 0.004) {
+        const h = Math.min(left, 0.004);
+        speed += (SPRING * SPRING * (state.target - next) - 2 * SPRING * speed) * h;
+        next += speed * h;
+      }
+      if (Math.abs(state.target - next) < 0.0004 && Math.abs(speed) < 0.01) {
+        next = state.target;
+        speed = 0;
+      }
+      state.velocity = speed;
       state.current = next;
       if (next !== state.target) {
         applyPose(next, state.velocity);
@@ -272,6 +321,55 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
       state.raf = 0;
     };
   }, []);
+
+  // ───────────── Jack admirando, no canto de baixo (layout largo) ─────────────
+  const jackWanted = near && wide;
+  useEffect(() => {
+    const mount = jackMountRef.current;
+    if (!mount || !jackWanted || window.matchMedia('(max-height: 560px)').matches) return;
+    const canvas = document.createElement('canvas');
+    canvas.className = 'showcase__jack-canvas';
+    mount.append(canvas);
+    let disposed = false;
+    import('../three/jackAdmirer')
+      .then(({ createJackAdmirer }) =>
+        createJackAdmirer(canvas, {
+          reduced: reducedMotion,
+          onReady: () => !disposed && mount.setAttribute('data-ready', 'true'),
+        }),
+      )
+      .then((jack) => {
+        if (disposed) {
+          jack.dispose();
+          return;
+        }
+        jackRef.current = jack;
+        const controls = controlsRef.current;
+        const panel = bottomRef.current;
+        if (controls && panel && mount.offsetWidth) {
+          jack.setStop(((panel.offsetLeft + controls.offsetLeft - mount.offsetLeft) / mount.offsetWidth) * 2 - 1);
+        }
+        const cf = chapter.current.current;
+        jack.react(FLAVORS[displayedRef.current].accent);
+        jack.setShown(chapter.current.ready && cf > -0.3 && cf < COUNT + 0.3);
+      })
+      .catch((error) => console.error('[jack-sabores]', error));
+    return () => {
+      disposed = true;
+      jackRef.current?.dispose();
+      jackRef.current = null;
+      mount.removeAttribute('data-ready');
+      canvas.remove();
+    };
+  }, [jackWanted, reducedMotion]);
+
+  useEffect(() => {
+    jackRef.current?.setActive(onStage);
+  }, [onStage]);
+
+  useEffect(() => {
+    jackRef.current?.react(FLAVORS[displayed].accent);
+  }, [displayed]);
 
   // Sabor "assentado": ele e os dois vizinhos ganham vídeo. Passagens rápidas mostram só capas.
   useEffect(() => {
@@ -384,6 +482,7 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
         },
         elementRef: (element: HTMLDivElement | null) => {
           layerElements.current[index] = element;
+          written.current.layers[index] = { o: '', v: '', z: '', f: '' }; // elemento novo: reescreve tudo
           if (element && chapter.current.ready) applyPose(chapter.current.current, 0);
         },
         onFrame: (frame: number, frameMode: ControlMode) => {
@@ -397,7 +496,8 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
             slider.value = String(frame);
             slider.setAttribute('aria-valuetext', `Quadro ${frame + 1} de ${total}`);
           }
-          stageRef.current?.style.setProperty('--turn', (frame / (total - 1)).toFixed(4));
+          const turn = (frame / (total - 1)).toFixed(3);
+          if (written.current.turn !== turn) slider?.style.setProperty('--turn', (written.current.turn = turn));
         },
         onModeChange: (value: ControlMode) => {
           if (index === displayedRef.current) setMode(value);
@@ -545,8 +645,26 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
     : undefined;
 
   const hintStyle: CSSProperties | undefined = safeRect
-    ? { left: safeRect.left + safeRect.width / 2, top: Math.min(safeRect.bottom + 6, stageSize.height - 40) }
+    ? { left: safeRect.left + safeRect.width / 2, top: safeRect.top + safeRect.height * 0.7 }
     : undefined;
+
+  useEffect(() => {
+    const mount = jackMountRef.current;
+    if (!mount || !safeRect) return;
+    const w = mount.offsetWidth;
+    const h = mount.offsetHeight;
+    if (!w || !h) return;
+    const cx = safeRect.left + safeRect.width / 2 - mount.offsetLeft;
+    const cy = safeRect.top + safeRect.height * 0.42 - mount.offsetTop;
+    jackRef.current?.setTarget((cx / w) * 2 - 1, -((cy / h) * 2 - 1));
+    // ele anda até encostar na barra de play/pausa (borda esquerda dos controles)
+    const controls = controlsRef.current;
+    const panel = bottomRef.current;
+    if (controls && panel) {
+      const left = panel.offsetLeft + controls.offsetLeft - mount.offsetLeft;
+      jackRef.current?.setStop((left / w) * 2 - 1);
+    }
+  });
 
   const playing = mode === 'play';
   const loadingVideo = loadState === 'loading' && interacted;
@@ -581,7 +699,7 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
           Explore os sabores
         </h2>
 
-        <div className="showcase__media">
+        <div ref={mediaRef} className="showcase__media">
           {FLAVORS.map((item, index) => {
             const isCurrent = index === displayed;
             const isNeighbour = Math.abs(index - displayed) === 1;
@@ -630,9 +748,19 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
           data-hint={hintDismissed ? 'off' : 'on'}
         />
         <p className="showcase__hint" style={hintStyle} data-visible={!hintDismissed} aria-hidden="true">
-          <span className="showcase__hint-arrows">←</span>
-          {finePointer ? 'Arraste para girar' : 'Deslize na lata para girar'}
-          <span className="showcase__hint-arrows">→</span>
+          {finePointer ? (
+            <span className="showcase__hint-icon is-mouse">
+              <span className="showcase__hint-wheel" />
+            </span>
+          ) : (
+            <span className="showcase__hint-icon is-touch">
+              <span className="showcase__hint-finger" />
+            </span>
+          )}
+          <span className="showcase__hint-label">{finePointer ? 'Role para girar' : 'Deslize para girar'}</span>
+          <svg className="showcase__hint-chevrons" viewBox="0 0 12 16" aria-hidden="true">
+            <path d="M2 3l4 4 4-4M2 9l4 4 4-4" />
+          </svg>
         </p>
 
         <div ref={topRef} className="showcase__intro">
@@ -671,24 +799,12 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
               </p>
             )}
           </div>
-          <dl className="showcase__facts" key={`facts-${flavor.id}`}>
-            <div>
-              <dt>Personagem</dt>
-              <dd>{flavor.character}</dd>
-            </div>
-            <div>
-              <dt>Paleta</dt>
-              <dd>{flavor.palette}</dd>
-            </div>
-          </dl>
-          <div className="showcase__chapter-bar" aria-hidden="true">
-            <span />
-          </div>
         </div>
 
         <span className="showcase__numeral" aria-hidden="true" key={`numeral-${flavor.id}`}>
           {flavor.number}
         </span>
+        {wide && <div ref={jackMountRef} className="showcase__jack" aria-hidden="true" />}
 
         <div ref={bottomRef} className="showcase__panel">
           <nav className="flavor-picker" aria-label="Escolha um sabor">

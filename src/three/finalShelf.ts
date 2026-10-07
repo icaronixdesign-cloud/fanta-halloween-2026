@@ -152,7 +152,8 @@ export async function createFinalShelf(canvas: HTMLCanvasElement, opts: Options)
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const texLoader = new THREE.TextureLoader();
   const [char, carry, boxGltf, can, clipsInfo, ...labels] = await Promise.all([
-    loader.loadAsync(BASE + (opts.mobile ? 'jack-mobile.glb' : 'jack.glb')),
+    // o Jack aqui é pequeno: a versão de texturas 1K basta e poupa memória de vídeo (o hero já tem a 2K)
+    loader.loadAsync(BASE + 'jack-mobile.glb'),
     loader.loadAsync(BASE + 'jack-carry.glb'),
     loader.loadAsync(BASE + 'caixa.glb'),
     loader.loadAsync(BASE + 'fanta-lata.glb'),

@@ -186,6 +186,25 @@ export function FinalCta({ reducedMotion }: Props) {
     };
   }, []);
 
+  // O vídeo ocupa a tela inteira: enquanto a seção está sob a faixa do header, o header sobe e some
+  // (volta quando a vitrine seguinte chega ao topo). Vale também com movimento reduzido.
+  useScrollProgress(sectionRef, null, ({ scrollY, sectionTop }) => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const band = scrollY + 40;
+    const hidden = band >= sectionTop && band < sectionTop + section.offsetHeight;
+    const root = document.documentElement;
+    if (hidden) root.dataset.header = 'hidden';
+    else if (root.dataset.header === 'hidden') delete root.dataset.header;
+  });
+
+  useEffect(
+    () => () => {
+      delete document.documentElement.dataset.header;
+    },
+    [],
+  );
+
   // Altura do palco para converter a posição dos blocos; reaplica a batida atual no resize.
   useEffect(() => {
     stageHeight.current = size.height;

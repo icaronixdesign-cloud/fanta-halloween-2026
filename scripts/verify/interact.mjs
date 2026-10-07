@@ -158,5 +158,10 @@ const pf = await page.evaluate(() => document.activeElement.getAttribute('href')
 await page.keyboard.press('Enter'); await sleep(1300); st = await stageState();
 ok(pf && st.flavor === pf.replace('#sabor-', ''), `seleção por teclado ${pf} -> exibido ${st.flavor}`);
 
+// 9. Jack da seção de sabores: entra andando e fica admirando a lata
+await scrollToY(page, await sectionY(page, 'sabores', 2.5 / 6)); await sleep(1500);
+const jack = await page.evaluate(() => document.querySelector('.showcase__jack')?.dataset.ready);
+ok(jack === 'true', `Jack admirando no canto dos sabores (${jack})`);
+
 ok(log.length === 0, 'console/rede sem erros: ' + JSON.stringify(log));
 await browser.close();

@@ -113,6 +113,13 @@
       "loop": true,
       "events": {},
       "stride": 0.24
+    },
+    "admire": {
+      "frames": 121,
+      "duration": 4.0,
+      "loop": true,
+      "events": {},
+      "stride": null
     }
   }
 }

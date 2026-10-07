@@ -22,10 +22,10 @@ for (const [w, h] of [[1440, 900], [390, 844], [844, 390], [768, 1024], [1440, 9
   s = await waitSettled(page, 'sabor:maracuja'); const g = await geo();
   ok(g.inside && g.belowIntro && Math.abs(g.aspect - 16 / 9) < 0.002 && g.ovX === 0 && s.presentedFrame === s.targetFrame, `${w}x${h} ${g.layout}: área segura dentro=${g.inside}, livre do texto=${g.belowIntro}, proporção ${g.aspect}, quadro ${s.presentedFrame}/${s.targetFrame}`);
 }
-// Suspensão: no fecho (entre os sabores e a CTA) nenhum controlador ativo nem vídeo tocando
+// Suspensão: de volta ao meio do hero (longe dos sabores e da CTA) nenhum controlador ativo nem vídeo tocando
 await page.click('.flavor-picker__item[href="#sabor-uva"]', { force: true }); await sleep(1000);
 await page.click('.icon-button.is-play'); await sleep(800);
-await page.evaluate(() => { const s = document.getElementById('sobre'); window.scrollTo({ top: s.getBoundingClientRect().top + scrollY + (s.offsetHeight - innerHeight) / 2, behavior: 'instant' }); }); await sleep(1200);
+await scrollToY(page, await sectionY(page, 'colecao', 0.5)); await sleep(1200);
 const snaps = await page.evaluate(() => window.__fantaDebug.snapshot().map((c) => ({ l: c.label, active: c.active, paused: c.paused, mode: c.mode })));
 ok(snaps.every((c) => !c.active && c.paused), `fora das seções de vídeo: ${JSON.stringify(snaps.filter((c) => c.active || !c.paused))} ativos/tocando`);
 // Fim da página: só a CTA ativa, pausada (scrub), sem reprodução

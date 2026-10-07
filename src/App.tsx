@@ -1,4 +1,3 @@
-import { ClosingSection } from './components/ClosingSection';
 import { JackHero } from './components/JackHero';
 import { FinalCta } from './components/FinalCta';
 import { FinalShelf } from './components/FinalShelf';
@@ -21,7 +20,6 @@ export function App() {
         <JackHero reducedMotion={reducedMotion} finePointer={finePointer} />
         <Interlude reducedMotion={reducedMotion} />
         <FlavorShowcase reducedMotion={reducedMotion} finePointer={finePointer} />
-        <ClosingSection reducedMotion={reducedMotion} />
         <FinalCta reducedMotion={reducedMotion} />
         <FinalShelf reducedMotion={reducedMotion} finePointer={finePointer} />
       </main>

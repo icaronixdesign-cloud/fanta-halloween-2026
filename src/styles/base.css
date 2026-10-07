@@ -301,6 +301,16 @@ input[type='range']:focus-visible {
   gap: clamp(16px, 3vw, 40px);
   padding: 0 var(--gutter);
   isolation: isolate;
+  transition:
+    transform 0.55s var(--ease-out),
+    opacity 0.4s ease;
+}
+
+/* some durante o vídeo da CTA (FinalCta); com o foco do teclado dentro dele, volta */
+:root[data-header='hidden'] .site-header:not(:focus-within) {
+  transform: translateY(calc(-100% - 90px));
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* vidro leve: desfoca o que passa por baixo e some na borda de baixo, sem linha nenhuma */
@@ -416,15 +426,18 @@ input[type='range']:focus-visible {
   flex-direction: column;
   align-items: center;
   transform-origin: 50% 0;
-  animation: spider-sway 6.5s ease-in-out infinite;
+  translate: 0 -24px;
+  animation:
+    spider-sway 6.5s ease-in-out infinite,
+    spider-drop 9s ease-in-out infinite;
   pointer-events: none;
 }
 
+/* o fio é mais longo que o necessário: a ponta de cima fica acima da tela quando a aranha sobe */
 .site-header__thread {
   width: 1px;
-  height: calc(var(--header-h) - 14px);
+  height: calc(var(--header-h) + 10px);
   background: linear-gradient(to bottom, rgba(244, 241, 234, 0.05), rgba(244, 241, 234, 0.42));
-  animation: spider-drop 9s ease-in-out infinite;
 }
 
 .site-header__spider svg {
@@ -468,17 +481,16 @@ input[type='range']:focus-visible {
 @keyframes spider-drop {
   0%,
   100% {
-    height: calc(var(--header-h) - 14px);
+    translate: 0 -24px;
   }
   45%,
   60% {
-    height: calc(var(--header-h) + 10px);
+    translate: 0 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .site-header__spider,
-  .site-header__thread {
+  .site-header__spider {
     animation: none;
   }
 }

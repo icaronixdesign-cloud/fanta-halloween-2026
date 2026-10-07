@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { memo, useEffect, useRef, type CSSProperties } from 'react';
 import type { MediaItem } from '../data/products';
 import { registerController } from '../media/debug';
 import type { Framing } from '../media/framing';
@@ -44,7 +44,7 @@ export interface FramedVideoProps {
   onPlayBlocked?: () => void;
 }
 
-export function FramedVideo(props: FramedVideoProps) {
+export const FramedVideo = memo(function FramedVideo(props: FramedVideoProps) {
   const {
     media,
     label,
@@ -191,4 +191,4 @@ export function FramedVideo(props: FramedVideoProps) {
       )}
     </div>
   );
-}
+});
