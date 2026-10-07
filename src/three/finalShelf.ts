@@ -56,30 +56,32 @@ interface Layout {
   spots: Spot[];
 }
 
+// O texto fica no topo; as latas, na metade de baixo, logo atrás do Jack: ele anda na frente delas e cobre a parte
+// de baixo dos rótulos, o que dá a profundidade (latas gigantes ao fundo, personagem pequeno no primeiro plano).
 function layoutFor(aspect: number): Layout {
   if (aspect > 1.15) {
     // paisagem: as seis numa fileira; a altura cede quando a vaga fica estreita (telas quase quadradas)
     const step = 0.315;
-    const h = Math.min(0.32, (0.78 * step * aspect) / (2 * CAN_ASPECT));
+    const h = Math.min(0.3, (0.78 * step * aspect) / (2 * CAN_ASPECT));
     return {
       fov: 30,
       pitch: 8,
-      jackH: 0.36,
+      jackH: 0.33,
       feetY: -0.9,
-      rest: -0.6,
-      spots: FLAVOR_IDS.map((_, i) => ({ x: (i - 2.5) * step, y: 0.14, h })),
+      rest: -0.5,
+      spots: FLAVOR_IDS.map((_, i) => ({ x: (i - 2.5) * step, y: -0.52, h })),
     };
   }
   // retrato: duas fileiras de três, a de trás aparecendo por cima da da frente
-  const h = Math.min(0.19, (0.78 * 0.6 * aspect) / (2 * CAN_ASPECT));
+  const h = Math.min(0.17, (0.78 * 0.6 * aspect) / (2 * CAN_ASPECT));
   return {
     fov: 34,
     pitch: 14,
-    jackH: 0.25,
-    feetY: -0.74,
-    rest: -0.5,
+    jackH: 0.24,
+    feetY: -0.76,
+    rest: -0.45,
     spots: FLAVOR_IDS.map((_, i) =>
-      i < 3 ? { x: (i - 1) * 0.6, y: 0.45, h: h * 0.78 } : { x: (i - 4) * 0.6, y: 0.11, h },
+      i < 3 ? { x: (i - 1) * 0.6, y: -0.1, h: h * 0.8 } : { x: (i - 4) * 0.6, y: -0.4, h },
     ),
   };
 }
@@ -442,7 +444,7 @@ export async function createFinalShelf(canvas: HTMLCanvasElement, opts: Options)
     const jackScreenX = v.x;
     const since = enterAt < 0 ? -1 : time - enterAt;
     shelf.forEach((s) => {
-      const order = Math.abs(s.spot.x) * 2.2 + (s.spot.y > 0.3 ? 0.35 : 0);
+      const order = Math.abs(s.spot.x) * 2.2 + (s.spot.y + 1) * 0.5;
       const pop = opts.reduced ? 1 : since < 0 ? 0 : smooth(0, 0.7, since - order * 0.18);
       const land = 1 - Math.pow(1 - pop, 3);
       const near = Math.exp(-(((jackScreenX - s.spot.x) / 0.17) ** 2)) * (entered ? 1 : 0);

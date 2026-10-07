@@ -300,7 +300,33 @@ input[type='range']:focus-visible {
   align-items: center;
   gap: clamp(16px, 3vw, 40px);
   padding: 0 var(--gutter);
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0));
+  isolation: isolate;
+}
+
+/* vidro leve: desfoca o que passa por baixo e some na borda de baixo, sem linha nenhuma */
+.site-header::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 -18px;
+  z-index: -2;
+  background: linear-gradient(to bottom, rgba(14, 8, 5, 0.62), rgba(14, 8, 5, 0.28) 70%, rgba(14, 8, 5, 0));
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent);
+  mask-image: linear-gradient(to bottom, #000 58%, transparent);
+  pointer-events: none;
+}
+
+/* teias nos cantos, bem discretas, atrás da marca e do botão */
+.site-header__web {
+  position: absolute;
+  top: 0;
+  z-index: -1;
+  width: clamp(150px, 15vw, 220px);
+  height: auto;
+  overflow: visible;
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 .site-header__brand {
@@ -359,29 +385,107 @@ input[type='range']:focus-visible {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--ink);
+  background: #ff8b3d;
+  box-shadow: 0 0 8px 1px rgba(255, 106, 16, 0.75);
   transform: translateX(-50%);
 }
 
-.site-header__progress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--line);
+.site-header__web path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 0.7;
+  stroke-linecap: round;
 }
 
-.site-header__progress span {
+.site-header__web.is-left {
+  left: 0;
+}
+
+.site-header__web.is-right {
+  right: 0;
+  transform: scaleX(-1);
+}
+
+/* aranha descendo por um fio, entre a marca e o menu; balança devagar */
+.site-header__spider {
   position: absolute;
-  inset: 0;
-  background: var(--ink);
-  transform: scaleX(0);
-  transform-origin: 0 50%;
+  top: 0;
+  left: clamp(230px, 31vw, 560px);
+  z-index: -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: 50% 0;
+  animation: spider-sway 6.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.site-header__thread {
+  width: 1px;
+  height: calc(var(--header-h) - 14px);
+  background: linear-gradient(to bottom, rgba(244, 241, 234, 0.05), rgba(244, 241, 234, 0.42));
+  animation: spider-drop 9s ease-in-out infinite;
+}
+
+.site-header__spider svg {
+  width: 20px;
+  height: 18px;
+  margin-top: -3px;
+  overflow: visible;
+}
+
+.site-header__spider ellipse,
+.site-header__spider circle {
+  fill: #1a0d06;
+  stroke: rgba(255, 138, 61, 0.55);
+  stroke-width: 0.6;
+}
+
+.site-header__spider .site-header__eye {
+  fill: #ff8b3d;
+  stroke: none;
+  filter: drop-shadow(0 0 2px #ff6a10);
+}
+
+.site-header__spider .site-header__legs {
+  fill: none;
+  stroke: rgba(255, 170, 110, 0.6);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes spider-sway {
+  0%,
+  100% {
+    transform: rotate(2.2deg);
+  }
+  50% {
+    transform: rotate(-2.2deg);
+  }
+}
+
+@keyframes spider-drop {
+  0%,
+  100% {
+    height: calc(var(--header-h) - 14px);
+  }
+  45%,
+  60% {
+    height: calc(var(--header-h) + 10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header__spider,
+  .site-header__thread {
+    animation: none;
+  }
 }
 
 @media (max-width: 719px) {
-  .site-header__nav {
+  .site-header__nav,
+  .site-header__spider {
     display: none;
   }
   .site-header__brand-name {

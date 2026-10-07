@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { goToSection } from '../interaction/navigation';
 
 const LINKS = [
@@ -11,18 +11,74 @@ interface Props {
   reducedMotion: boolean;
 }
 
+/**
+ * Teia de canto (origem no canto de cima à esquerda): raios em leque e fios que cedem entre eles, gerada
+ * uma vez. O lado direito usa a mesma teia espelhada.
+ */
+const WEB_W = 220;
+const WEB_H = 120;
+const WEB_PATH = (() => {
+  const spokes = [3, 13, 25, 38, 52, 67, 82].map((deg) => (deg * Math.PI) / 180);
+  const reach = (a: number) => Math.min(WEB_W / Math.cos(a), WEB_H / Math.sin(a), 240);
+  const at = (a: number, r: number) => [r * Math.cos(a), r * Math.sin(a)];
+  const f = (n: number) => n.toFixed(1);
+  let d = '';
+  for (const a of spokes) {
+    const [x, y] = at(a, reach(a));
+    d += `M0 0L${f(x)} ${f(y)}`;
+  }
+  // fios: de raio em raio, com a curva puxada para o centro (a teia cede)
+  const rings = [16, 32, 50, 70, 92, 116, 142, 170];
+  rings.forEach((r, k) => {
+    for (let i = 0; i < spokes.length - 1; i += 1) {
+      const a0 = spokes[i];
+      const a1 = spokes[i + 1];
+      const r0 = r * (1 + 0.05 * Math.sin(k * 3.1 + i));
+      const r1 = r * (1 + 0.05 * Math.sin(k * 3.1 + i + 1));
+      if (r0 > reach(a0) || r1 > reach(a1)) continue;
+      const [x0, y0] = at(a0, r0);
+      const [x1, y1] = at(a1, r1);
+      const [cx, cy] = at((a0 + a1) / 2, ((r0 + r1) / 2) * 0.86);
+      d += `M${f(x0)} ${f(y0)}Q${f(cx)} ${f(cy)} ${f(x1)} ${f(y1)}`;
+    }
+  });
+  return d;
+})();
+
+function Cobweb({ side }: { side: 'left' | 'right' }) {
+  const id = `web-fade-${side}`;
+  return (
+    <svg className={`site-header__web is-${side}`} viewBox={`0 0 ${WEB_W} ${WEB_H}`} aria-hidden="true">
+      <defs>
+        <radialGradient
+          id={id}
+          cx="0"
+          cy="0"
+          r="1"
+          gradientUnits="userSpaceOnUse"
+          gradientTransform={`scale(${WEB_W} ${WEB_H * 1.6})`}
+        >
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="0.55" stopColor="#fff" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+        <mask id={`${id}-mask`}>
+          <rect width={WEB_W} height={WEB_H} fill={`url(#${id})`} />
+        </mask>
+      </defs>
+      <path d={WEB_PATH} mask={`url(#${id}-mask)`} />
+    </svg>
+  );
+}
+
 export function SiteHeader({ reducedMotion }: Props) {
-  const progressRef = useRef<HTMLSpanElement>(null);
   const [current, setCurrent] = useState('colecao');
 
-  // Linha de progresso da página (escrita direto no DOM) e seção atual (só muda de vez em quando).
+  // Seção atual (só muda de vez em quando).
   useEffect(() => {
     let raf = 0;
     const update = () => {
       raf = 0;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = max > 0 ? window.scrollY / max : 0;
-      progressRef.current?.style.setProperty('transform', `scaleX(${progress.toFixed(4)})`);
       const probe = window.innerHeight * 0.45;
       let active = LINKS[0].id;
       for (const link of LINKS) {
@@ -46,6 +102,21 @@ export function SiteHeader({ reducedMotion }: Props) {
 
   return (
     <header className="site-header">
+      <Cobweb side="left" />
+      <Cobweb side="right" />
+      <span className="site-header__spider" aria-hidden="true">
+        <span className="site-header__thread" />
+        <svg viewBox="0 0 24 22">
+          <path
+            className="site-header__legs"
+            d="M10 9 6 5 2 6M10 11 5 9 1 11M10 13 5 14 2 18M11 14 8 18 7 21M14 9l4-4 4 1M14 11l5-2 4 2M14 13l5 1 3 4M13 14l3 4 1 3"
+          />
+          <ellipse cx="12" cy="14" rx="3.6" ry="4.4" />
+          <circle cx="12" cy="8.6" r="2.4" />
+          <circle className="site-header__eye" cx="11.1" cy="8.2" r="0.55" />
+          <circle className="site-header__eye" cx="12.9" cy="8.2" r="0.55" />
+        </svg>
+      </span>
       <a
         className="site-header__brand"
         href="#colecao"
@@ -85,9 +156,6 @@ export function SiteHeader({ reducedMotion }: Props) {
       >
         Explore os sabores
       </a>
-      <span className="site-header__progress" aria-hidden="true">
-        <span ref={progressRef} />
-      </span>
     </header>
   );
 }

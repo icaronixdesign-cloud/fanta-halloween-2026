@@ -1,7 +1,7 @@
 /* ═══════════════════════════ VITRINE FINAL · CTA ═══════════════════════════ */
 
-/* As posições batem com src/three/finalShelf.ts (layoutFor): latas da vitrine na metade de cima, Jack com os
-   pés perto da base. O texto fica entre as duas coisas, por cima do canvas, na faixa em que o Jack anda. */
+/* As posições batem com src/three/finalShelf.ts (layoutFor): texto no topo, latas da vitrine na metade de baixo e
+   o Jack andando na frente delas, com os pés perto da base. */
 .final-shelf {
   position: relative;
   height: 100svh;
@@ -39,7 +39,7 @@
   position: absolute;
   z-index: 3;
   left: 50%;
-  top: 46%;
+  top: calc(var(--header-h) + clamp(18px, 4.5svh, 48px));
   display: grid;
   justify-items: center;
   width: min(100% - 2 * var(--gutter), 1100px);
@@ -60,7 +60,7 @@
 .final-shelf__title {
   display: grid;
   margin-top: clamp(10px, 1.6vh, 18px);
-  font-size: clamp(40px, 5.4vw, 100px);
+  font-size: clamp(38px, min(5.4vw, 9svh), 100px);
   font-weight: 900;
   font-stretch: 92%;
   text-transform: uppercase;
@@ -191,10 +191,6 @@
 
 /* retrato (mesma virada de layoutFor: proporção até 1,15): duas fileiras de latas, setas centradas embaixo */
 @media (max-aspect-ratio: 23/20) {
-  .final-shelf__copy {
-    top: 48%;
-  }
-
   .final-shelf__title {
     font-size: clamp(34px, 9.4vw, 72px);
   }
