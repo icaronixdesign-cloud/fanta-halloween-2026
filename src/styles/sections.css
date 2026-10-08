@@ -141,13 +141,14 @@
   right: 0;
   bottom: 0;
   z-index: 1;
-  height: 45svh;
+  height: 30svh;
   pointer-events: none;
+  /* sutil: só fecha no preto bem no fim (onde a vitrine começa) */
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(0, 0, 0, 0.55) 40%,
-    rgba(0, 0, 0, 0.9) 75%,
+    rgba(0, 0, 0, 0.22) 45%,
+    rgba(0, 0, 0, 0.66) 80%,
     #000
   );
 }
@@ -783,8 +784,29 @@
 }
 
 .showcase__stage.is-wide .spin-controls {
-  width: min(100%, 272px);
+  width: min(100%, 232px);
   margin-left: auto;
+}
+
+/* no layout largo a barra fica menor */
+.showcase__stage.is-wide .spin-controls .icon-button {
+  width: 30px;
+  height: 30px;
+}
+
+.showcase__stage.is-wide .spin-controls .icon-button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.showcase__stage.is-wide .spin-controls .icon-button.is-play {
+  width: 33px;
+  height: 33px;
+}
+
+.showcase__stage.is-wide .spin-controls__label,
+.showcase__stage.is-wide .spin-controls__status {
+  font-size: 8.5px;
 }
 
 .spin-controls__slider {
@@ -864,8 +886,9 @@
   width: min(25vw, 330px);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 20px;
+  /* controles logo abaixo da lista: o canto de baixo fica para o Jack */
+  justify-content: flex-start;
+  gap: clamp(16px, 2.6svh, 28px);
 }
 
 .showcase__stage.is-wide .flavor-picker__list {
@@ -873,14 +896,15 @@
   gap: 0;
 }
 
-/* Jack: entra andando pela esquerda na faixa de baixo e para ao lado da barra de play/pausa */
+/* Jack: entra andando pela esquerda na faixa de baixo e atravessa até o canto de baixo à direita */
 .showcase__jack {
   position: absolute;
   z-index: 4;
   left: 0;
   right: 0;
   bottom: 0;
-  height: clamp(220px, 34svh, 380px);
+  /* em telas baixas cede para não encostar nos controles, que ficam logo acima */
+  height: min(clamp(280px, 47svh, 540px), calc(100svh - var(--header-h) - 360px));
   pointer-events: none;
   /* canela cortada pela borda: some num degradê em vez de um corte reto */
   -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent);

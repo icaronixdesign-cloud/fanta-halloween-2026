@@ -6,7 +6,7 @@ import { damp } from './common';
 
 /**
  * Jack na faixa de baixo da seção de sabores: na primeira vez que a seção aparece ele entra andando pela esquerda
- * (clipe `walk` do jack.glb, passos casados com o deslocamento), para ao lado da barra de play/pausa e fica
+ * (clipe `walk` do jack.glb, passos casados com o deslocamento), atravessa a faixa até o canto de baixo à direita e fica
  * admirando a lata gigante (clipe `admire` de jack-admire.glb: mãos juntas no peito, suspiro, balanço). Parado, o
  * corpo gira para a lata e a cabeça completa o olhar; a cada troca de sabor ele reage ("ooh") e o recorte de luz
  * toma a cor do sabor. O quadro corta na canela, como se ele andasse na borda de baixo da tela.
@@ -19,7 +19,7 @@ const VIEW_LOW = 0.12;
 const VIEW_HIGH = 1.0;
 const FOV = 20;
 /** Velocidade andando (m/s); o clipe walk avança 0,26 m por ciclo de 1 s. */
-const SPEED = 0.55;
+const SPEED = 0.68;
 const STRIDE_SPEED = 0.26;
 /** Meia-largura do corpo de perfil (m): para antes de encostar nos controles. */
 const HALF_BODY = 0.2;

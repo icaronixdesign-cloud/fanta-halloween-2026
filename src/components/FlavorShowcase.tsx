@@ -82,6 +82,12 @@ function withLoaded(list: number[], priority: number[], keep: number): number[] 
 }
 
 /** Nome em linhas e letras, cada letra com seu índice para o escalonamento da animação. */
+/** Onde o Jack para (x -1…1 do canvas dele): o lado direito do corpo na borda direita do painel lateral. */
+function jackStopNdc(panel: HTMLElement, mount: HTMLElement): number {
+  const right = panel.offsetLeft + panel.offsetWidth - mount.offsetLeft;
+  return (right / mount.offsetWidth) * 2 - 1;
+}
+
 function NameLines({ flavor }: { flavor: Flavor }) {
   let charIndex = 0;
   return (
@@ -344,10 +350,9 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
           return;
         }
         jackRef.current = jack;
-        const controls = controlsRef.current;
         const panel = bottomRef.current;
-        if (controls && panel && mount.offsetWidth) {
-          jack.setStop(((panel.offsetLeft + controls.offsetLeft - mount.offsetLeft) / mount.offsetWidth) * 2 - 1);
+        if (panel && mount.offsetWidth) {
+          jack.setStop(jackStopNdc(panel, mount));
         }
         const cf = chapter.current.current;
         jack.react(FLAVORS[displayedRef.current].accent);
@@ -657,12 +662,10 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
     const cx = safeRect.left + safeRect.width / 2 - mount.offsetLeft;
     const cy = safeRect.top + safeRect.height * 0.42 - mount.offsetTop;
     jackRef.current?.setTarget((cx / w) * 2 - 1, -((cy / h) * 2 - 1));
-    // ele anda até encostar na barra de play/pausa (borda esquerda dos controles)
-    const controls = controlsRef.current;
+    // ele atravessa a faixa e para no canto de baixo à direita, embaixo dos controles
     const panel = bottomRef.current;
-    if (controls && panel) {
-      const left = panel.offsetLeft + controls.offsetLeft - mount.offsetLeft;
-      jackRef.current?.setStop((left / w) * 2 - 1);
+    if (panel) {
+      jackRef.current?.setStop(jackStopNdc(panel, mount));
     }
   });
 
