@@ -10,7 +10,7 @@ import {
 } from '../media/ScrubVideoController';
 
 /**
- * Vídeo 16:9 enquadrado + capa JPG por baixo. A capa fica visível até o controlador confirmar um
+ * Vídeo 16:9 enquadrado (ou só a faixa `crop` dele) + capa JPG por baixo. A capa fica visível até o controlador confirmar um
  * quadro utilizável da fonte atual; em erro, a capa permanece (e pode trocar para `errorPoster`).
  * Os degradês de borda só cobrem a faixa de estúdio vazia fora da área segura do produto.
  * Com `posterBack`, uma segunda capa (lata de costas) cobre os quadros do meio da volta; o palco
@@ -30,6 +30,8 @@ export interface FramedVideoProps {
   elementRef?: (element: HTMLDivElement | null) => void;
   /** Fonte do vídeo; `null` mantém o elemento sem download. */
   src: string | null;
+  /** A fonte cobre só esta faixa horizontal do quadro (fração 0–1): o vídeo é posicionado nela, o quadro segue 16:9. */
+  crop?: { x0: number; x1: number } | null;
   preload: PreloadHint;
   active: boolean;
   wrapManual?: boolean;
@@ -53,6 +55,7 @@ export const FramedVideo = memo(function FramedVideo(props: FramedVideoProps) {
     posterBack,
     elementRef,
     src,
+    crop,
     preload,
     active,
     wrapManual,
@@ -172,8 +175,9 @@ export const FramedVideo = memo(function FramedVideo(props: FramedVideoProps) {
       <video
         ref={videoRef}
         className="framed-video__media"
-        width={media.width}
+        width={crop ? Math.round(media.width * (crop.x1 - crop.x0)) : media.width}
         height={media.height}
+        style={crop ? { left: `${crop.x0 * 100}%`, width: `${(crop.x1 - crop.x0) * 100}%` } : undefined}
         muted
         playsInline
         preload="none"

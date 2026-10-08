@@ -6,8 +6,8 @@ const M = fileURLToPath(new URL('../../public/media/fanta/', import.meta.url));
 const grabs = JSON.parse(fs.readFileSync(new URL('./out/grabs.json', import.meta.url), 'utf8'));
 const frame = (file, n) => execFileSync('ffmpeg', ['-v', 'error', '-i', `${M}${file}`, '-vf', `trim=start_frame=${n}:end_frame=${n + 1},scale=192:108:flags=bilinear`, '-frames:v', '1', '-fps_mode', 'vfr', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']);
 for (const [key, g] of Object.entries(grabs)) {
-  const [id, nStr] = key.split(/-(?=\d+$)/); const n = +nStr; const file = id === 'colecao' ? 'fanta-colecao-loop.mp4' : `fanta-${id}-loop.mp4`;
-  const last = id === 'colecao' ? 239 : 179;
+  const [id, nStr] = key.split(/-(?=\d+$)/); const n = +nStr; const file = `fanta-${id}-loop.mp4`;
+  const last = 179;
   const res = [];
   for (const c of [n - 2, n - 1, n, n + 1, n + 2].filter((x) => x >= 0 && x <= last)) {
     const ref = frame(file, c); let diff = 0;

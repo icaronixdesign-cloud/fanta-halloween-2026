@@ -525,15 +525,23 @@
   animation: count-in 0.6s var(--ease-out) both;
 }
 
+/* Valores literais nos keyframes (sem var()): assim a animação roda no compositor, sem recalcular estilo a cada quadro. */
 @keyframes count-in {
   from {
-    transform: translateY(var(--count-from, 100%));
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes count-in-up {
+  from {
+    transform: translateY(-100%);
     opacity: 0;
   }
 }
 
 .showcase__stage[data-dir='up'] .showcase__count-current {
-  --count-from: -100%;
+  animation-name: count-in-up;
 }
 
 .showcase__eyebrow-label::before {
@@ -599,19 +607,9 @@
   display: inline-block;
 }
 
-.showcase__stage {
-  --char-from: 1.2em;
-  --char-to: -1.2em;
-  --char-tilt: 7deg;
-}
-
-.showcase__stage[data-dir='up'] {
-  --char-from: -1.2em;
-  --char-to: 1.2em;
-  --char-tilt: -7deg;
-}
-
-/* A saída é curta e começa já; a entrada vem logo atrás, letra a letra. */
+/* A saída é curta e começa já; a entrada vem logo atrás, letra a letra. Um par de keyframes por direção, com valores
+   literais: com var() dentro dos keyframes a animação saía do compositor e cada letra recalculava estilo a cada
+   quadro (no celular, metade dos quadros lentos da seção). */
 .is-enter .showcase__name-char {
   animation: name-char-in 0.72s var(--ease-out) both;
   animation-delay: calc(110ms + var(--ci) * 22ms);
@@ -622,15 +620,35 @@
   animation-delay: calc(var(--ci) * 8ms);
 }
 
+.showcase__stage[data-dir='up'] .is-enter .showcase__name-char {
+  animation-name: name-char-in-up;
+}
+
+.showcase__stage[data-dir='up'] .is-exit .showcase__name-char {
+  animation-name: name-char-out-up;
+}
+
 @keyframes name-char-in {
   from {
-    transform: translateY(var(--char-from)) rotate(var(--char-tilt));
+    transform: translateY(1.2em) rotate(7deg);
   }
 }
 
 @keyframes name-char-out {
   to {
-    transform: translateY(var(--char-to)) rotate(calc(var(--char-tilt) * -1));
+    transform: translateY(-1.2em) rotate(-7deg);
+  }
+}
+
+@keyframes name-char-in-up {
+  from {
+    transform: translateY(-1.2em) rotate(-7deg);
+  }
+}
+
+@keyframes name-char-out-up {
+  to {
+    transform: translateY(1.2em) rotate(7deg);
   }
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { FLAVORS, flavorById, type Flavor } from '../data/products';
+import { FLAVORS, VIDEO_CROP, flavorById, type Flavor } from '../data/products';
 import { clamp, smoothstep, wrapFrame } from '../media/frames';
 import { computeFraming, type Framing, type Insets } from '../media/framing';
 import { preloadPoster } from '../media/posterCache';
@@ -454,6 +454,19 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
   // Capas: baixam quando a seção se aproxima e continuam disponíveis depois disso.
   if (near && !postersWanted) setPostersWanted(true);
 
+  // Tela em pé: só o miolo do quadro aparece, então vale o vídeo recortado (VIDEO_CROP: mesmo detalhe, ~40% dos
+  // bytes e da decodificação). Entra só se o recorte contém tudo o que fica visível, com folga para o empurrão da
+  // troca e o deslocamento do cursor; uma vez dentro, só sai se passar do recorte (sem trocar de arquivo à toa
+  // quando a barra do navegador do celular aparece e some). Decidido antes de qualquer vídeo baixar.
+  const [cropMode, setCropMode] = useState(false);
+  if (framing) {
+    const left = -framing.left / framing.width;
+    const right = (framing.containerWidth - framing.left) / framing.width;
+    const pad = cropMode ? 0 : 0.012;
+    const fits = left >= VIDEO_CROP.x0 + pad && right <= VIDEO_CROP.x1 - pad;
+    if (fits !== cropMode) setCropMode(fits);
+  }
+
   // Fila de vídeos derivada durante o render (sem efeito em cascata).
   const loadInputs = `${settled}:${near ? 1 : 0}:${reducedMotion ? 1 : 0}:${interacted ? 1 : 0}`;
   const [appliedLoadInputs, setAppliedLoadInputs] = useState('');
@@ -786,7 +799,8 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
                 framing={framing}
                 poster={postersWanted || isCurrent ? item.poster : null}
                 posterBack={postersWanted && !reducedMotion ? item.posterBack : null}
-                src={isLoaded ? item.video : null}
+                src={isLoaded ? (cropMode ? item.videoCrop : item.video) : null}
+                crop={cropMode ? VIDEO_CROP : null}
                 preload={preload}
                 active={onStage && (isCurrent || (isNeighbour && !reducedMotion))}
                 wrapManual

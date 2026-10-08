@@ -63,18 +63,16 @@ export interface Flavor extends MediaItem {
   thumb: string;
   /** Quadro 090 do vídeo (lata de costas, cópia derivada): capa durante a troca de sabor. */
   posterBack: string;
-  /** Centro horizontal da lata no vídeo da coleção (fração do quadro). */
-  collectionX: number;
+  /** O mesmo vídeo recortado no centro (faixa `VIDEO_CROP` do quadro, resolução cheia), para telas em pé. */
+  videoCrop: string;
 }
 
-export interface Collection extends MediaItem {
-  /** Capa oficial (quadro 120, Ghost Face Punch à frente). */
-  officialPoster: string;
-  /** Cópia derivada do quadro 000, igual ao início da sequência de scroll. */
-  firstFramePoster: string;
-  /** Quadro representado pela capa oficial. */
-  officialPosterFrame: number;
-}
+/**
+ * Faixa horizontal (fração do quadro 16:9) coberta pelos vídeos `-m`: 896×1080 px a partir de x = 504 px. No celular
+ * em pé só o miolo do quadro aparece; o recorte tem o mesmo detalhe em ~40% dos bytes e da decodificação. O quadro
+ * lógico continua 16:9 (área segura, máscaras e capas inalteradas): o vídeo recortado só é posicionado dentro dele.
+ */
+export const VIDEO_CROP = { x0: 504 / 1920, x1: 1400 / 1920 };
 
 /** Prefixa caminhos públicos com a base do Vite, para não depender de caminho absoluto. */
 export function withBase(path: string): string {
@@ -83,17 +81,10 @@ export function withBase(path: string): string {
 }
 
 // Medido por desvio-padrão temporal de todos os quadros (ver README): a lata individual ocupa
-// x 33,9–64,1% e y 13–90,7% do quadro; a coleção ocupa x 6,8–94,8% e y ~30–82% (abaixo é reflexo).
+// x 33,9–64,1% e y 13–90,7% do quadro.
 const FLAVOR_SAFE: SafeArea = { x0: 0.325, x1: 0.665, y0: 0.115, y1: 0.925 };
-const COLLECTION_SAFE: SafeArea = { x0: 0.055, x1: 0.96, y0: 0.27, y1: 0.85 };
 
 const kitItems = siteData.items as KitItem[];
-
-function kitItem(id: string): KitItem {
-  const item = kitItems.find((entry) => entry.id === id);
-  if (!item) throw new Error(`Item ausente em produtos-site.json: ${id}`);
-  return item;
-}
 
 function toMedia(item: KitItem, safe: SafeArea): MediaItem {
   return {
@@ -118,7 +109,6 @@ interface FlavorUi {
   glow: string;
   character: string;
   palette: string;
-  collectionX: number;
 }
 
 const FLAVOR_UI: Record<string, FlavorUi> = {
@@ -128,7 +118,6 @@ const FLAVOR_UI: Record<string, FlavorUi> = {
     glow: '#a7466d',
     character: 'Figura encapuzada com máscara de fantasma',
     palette: 'Preto, rosa e magenta',
-    collectionX: 0.457,
   },
   guarana: {
     nameLines: ['Guaraná'],
@@ -136,7 +125,6 @@ const FLAVOR_UI: Record<string, FlavorUi> = {
     glow: '#268656',
     character: 'Lobisomem de fones e óculos redondos',
     palette: 'Verde ácido',
-    collectionX: 0.619,
   },
   maracuja: {
     nameLines: ['Maracujá'],
@@ -144,7 +132,6 @@ const FLAVOR_UI: Record<string, FlavorUi> = {
     glow: '#a48148',
     character: 'Rosto costurado, versão âmbar',
     palette: 'Amarelo e âmbar',
-    collectionX: 0.269,
   },
   uva: {
     nameLines: ['Uva'],
@@ -152,7 +139,6 @@ const FLAVOR_UI: Record<string, FlavorUi> = {
     glow: '#7055a5',
     character: 'Vampiro de cabelo penteado para trás',
     palette: 'Roxo e lilás',
-    collectionX: 0.127,
   },
   laranja: {
     nameLines: ['Laranja'],
@@ -160,7 +146,6 @@ const FLAVOR_UI: Record<string, FlavorUi> = {
     glow: '#af5f44',
     character: 'Espantalho com cabeça de abóbora',
     palette: 'Laranja queimado',
-    collectionX: 0.757,
   },
   caju: {
     nameLines: ['Caju'],
@@ -168,7 +153,6 @@ const FLAVOR_UI: Record<string, FlavorUi> = {
     glow: '#a94a42',
     character: 'Rosto marcado por cicatrizes, versão vermelha',
     palette: 'Vermelho e coral',
-    collectionX: 0.892,
   },
 };
 
@@ -183,20 +167,9 @@ export const FLAVORS: Flavor[] = kitItems
       number: String(index + 1).padStart(2, '0'),
       thumb: withBase(`/media/fanta/derived/fanta-${item.id}-thumb-v2.webp`),
       posterBack: withBase(`/media/fanta/derived/fanta-${item.id}-quadro-090-v2.jpg`),
+      videoCrop: withBase(item.video.replace(/\.mp4$/, '-m.mp4')),
     };
   });
-
-const collectionItem = kitItem('colecao');
-
-export const COLLECTION: Collection = {
-  ...toMedia(collectionItem, COLLECTION_SAFE),
-  officialPoster: withBase(collectionItem.poster),
-  officialPosterFrame: 120,
-  firstFramePoster: withBase('/media/fanta/derived/fanta-colecao-quadro-000-v2.jpg'),
-};
-
-/** Ordem das latas, da esquerda para a direita, no vídeo da coleção. */
-export const COLLECTION_ORDER: Flavor[] = [...FLAVORS].sort((a, b) => a.collectionX - b.collectionX);
 
 export function flavorById(id: string): Flavor | undefined {
   return FLAVORS.find((flavor) => flavor.id === id);

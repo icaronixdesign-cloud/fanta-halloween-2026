@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
-  FLAVOR_ACCENT, FLAVOR_GLOW, FLAVOR_IDS, animatedPose, closeLoop, damp, motionWarp, radialTexture, setLabel, smooth, smoothClip,
+  FLAVOR_ACCENT, FLAVOR_GLOW, FLAVOR_IDS, animatedPose, closeLoop, damp, motionWarp, radialTexture, setLabel, smooth, smoothClip, warmUp,
 } from './common';
 import { createDrinkState, drinkMix, drinkStep, warpTime } from './drinkMotion';
 
@@ -115,7 +115,7 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
       (r) => r.json() as Promise<{ clips: Record<string, { duration: number; events?: Record<string, number> }> }>,
     ),
     ...FLAVORS.map((f) =>
-      texLoader.loadAsync(`${BASE}labels/label-${f}.webp`).then((t) => {
+      texLoader.loadAsync(`${BASE}labels/label-${f}${opts.mobile ? '-m' : ''}.webp`).then((t) => {
         t.flipY = false;
         t.colorSpace = THREE.SRGBColorSpace;
         t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -290,7 +290,7 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
   };
   // os loops saíram do Blender com a emenda aberta (o cabo da abóbora pulava a cada volta) e as chaves ligadas por
   // retas; a subida do gole também tem as quinas arredondadas, mas pouco (o começo e o fim continuam exatos)
-  for (const n of ['idle_hold', 'offer_idle', 'drink']) smoothClip(closeLoop(anim(n)), 0.06, true);
+  for (const n of ['idle_hold', 'offer_idle', 'drink']) smoothClip(closeLoop(anim(n)), 0.06, true, 60);
   smoothClip(anim('drink_in'), 0.03, false);
   // a subida é tocada pelo caminho da lata, da mão no quadril e do rosto (ver drinkMotion.ts)
   const drinkWarp = motionWarp(model, anim('drink_in'), [
@@ -648,6 +648,7 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
     if (active && !opts.reduced) raf = requestAnimationFrame(loop);
   };
   resize();
+  await warmUp(renderer, scene, camera);
   step(0);
   opts.onReady?.();
   if (!opts.reduced) raf = requestAnimationFrame(loop);

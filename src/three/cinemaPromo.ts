@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { addMirrors, damp, radialTexture, setLabel, smooth } from './common';
+import { addMirrors, damp, radialTexture, setLabel, smooth, warmUp } from './common';
 
 /**
  * Promoção Cinemark: o Pânico sai do fundo (da luz da tela do cinema) com o balde de pipoca; o vampiro entra
@@ -299,7 +299,7 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
   const [gltf, canGltf, label] = await Promise.all([
     loader.loadAsync(BASE + (opts.mobile ? 'cena-mobile.glb' : 'cena.glb')),
     loader.loadAsync(JACK + 'fanta-lata.glb'),
-    new THREE.TextureLoader().loadAsync(JACK + 'labels/label-uva.webp').then((t) => {
+    new THREE.TextureLoader().loadAsync(JACK + (opts.mobile ? 'labels/label-uva-m.webp' : 'labels/label-uva.webp')).then((t) => {
       t.flipY = false;
       t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -351,7 +351,11 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
     const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
     if (m?.name === 'Ghost_Body') {
       ghostMats.push(m);
-      if (!m.transparent) ghostOpaque.add(m);
+      // já nasce transparente (com profundidade): trocar `transparent` no meio da cena recompilaria o shader
+      if (!m.transparent) {
+        ghostOpaque.add(m);
+        m.transparent = true;
+      }
     }
   });
 
@@ -648,14 +652,7 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
       for (const m of ghostMats) {
         m.color.setScalar(dim);
         m.envMapIntensity = dim;
-        if (ghostOpaque.has(m)) {
-          m.opacity = gone;
-          const tr = gone < 0.999;
-          if (m.transparent !== tr) {
-            m.transparent = tr;
-            m.needsUpdate = true;
-          }
-        }
+        if (ghostOpaque.has(m)) m.opacity = gone;
       }
     }
 
@@ -790,6 +787,7 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
     } else if (!raf && active) raf = requestAnimationFrame(loop);
   };
   resize();
+  await warmUp(renderer, scene, camera);
   update(0);
   opts.onReady?.();
   if (!opts.reduced) raf = requestAnimationFrame(loop);

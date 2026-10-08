@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { animatedPose, damp } from './common';
+import { animatedPose, damp, warmUp } from './common';
 
 /**
  * Jack na faixa de baixo da seção de sabores: na primeira vez que a seção aparece ele entra andando pela esquerda
@@ -240,6 +240,7 @@ export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options
     }
   };
   resize();
+  await warmUp(renderer, scene, camera);
   if (opts.reduced) x = stopX();
   step(0);
   opts.onReady?.();

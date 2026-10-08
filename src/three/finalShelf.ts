@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { FLAVOR_GLOW, FLAVOR_IDS, addMirrors, animatedPose, damp, radialTexture, setLabel, smooth } from './common';
+import { FLAVOR_GLOW, FLAVOR_IDS, addMirrors, animatedPose, damp, radialTexture, setLabel, smooth, warmUp } from './common';
 
 /**
  * Vitrine final: as seis latas gigantes expostas num chão espelhado, com uma poça de luz na cor de cada sabor, e
@@ -161,7 +161,7 @@ export async function createFinalShelf(canvas: HTMLCanvasElement, opts: Options)
       (r) => r.json() as Promise<{ clips: Record<string, { duration: number; stride?: number | null }> }>,
     ),
     ...FLAVOR_IDS.map((f) =>
-      texLoader.loadAsync(`${BASE}labels/label-${f}.webp`).then((t) => {
+      texLoader.loadAsync(`${BASE}labels/label-${f}${opts.mobile ? '-m' : ''}.webp`).then((t) => {
         t.flipY = false;
         t.colorSpace = THREE.SRGBColorSpace;
         t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -489,6 +489,7 @@ export async function createFinalShelf(canvas: HTMLCanvasElement, opts: Options)
     } else if (!raf && active) raf = requestAnimationFrame(loop);
   };
   resize();
+  await warmUp(renderer, scene, camera);
   x = opts.reduced ? restX() : minX - 0.75;
   update(0);
   opts.onReady?.();

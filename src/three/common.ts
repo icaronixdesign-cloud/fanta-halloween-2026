@@ -202,6 +202,48 @@ export function animatedPose(bones: THREE.Object3D[]) {
   };
 }
 
+/** Cede a vez ao navegador (desenhar, rolar) entre duas tarefas pesadas. */
+const yieldToBrowser = () => {
+  const s = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  return s?.yield ? s.yield() : new Promise<void>((resolve) => setTimeout(resolve, 0));
+};
+
+/**
+ * Deixa a cena pronta sem travar a página. Sem isto, o primeiro quadro de cada cena compilava todos os shaders de uma
+ * vez (a thread principal ficava parada esperando o driver: 0,3–1,4 s ao entrar no hero, nos sabores e no cinema) e
+ * subia todas as texturas no mesmo quadro. Aqui os shaders compilam em paralelo (`compileAsync` usa
+ * KHR_parallel_shader_compile; sem a extensão o navegador volta ao jeito antigo) e as texturas sobem uma de cada
+ * vez, cedendo a vez entre elas. Objetos escondidos agora (que só aparecem no meio da animação) entram também, senão
+ * compilariam na hora em que aparecem. Chamar antes do primeiro quadro visível.
+ */
+export async function warmUp(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
+  const hidden: THREE.Object3D[] = [];
+  scene.traverse((o) => {
+    if (!o.visible) {
+      hidden.push(o);
+      o.visible = true;
+    }
+  });
+  try {
+    await renderer.compileAsync(scene, camera);
+  } finally {
+    for (const o of hidden) o.visible = false;
+  }
+  const textures = new Set<THREE.Texture>();
+  scene.traverse((o) => {
+    const mat = (o as THREE.Mesh).material;
+    for (const m of mat ? (Array.isArray(mat) ? mat : [mat]) : []) {
+      const uniforms = (m as THREE.ShaderMaterial).uniforms ?? {};
+      const values = [...Object.values(m), ...Object.values(uniforms).map((u) => u?.value)];
+      for (const value of values) if (value instanceof THREE.Texture && value.image) textures.add(value);
+    }
+  });
+  for (const texture of textures) {
+    await yieldToBrowser();
+    renderer.initTexture(texture);
+  }
+}
+
 /** Troca o rótulo; na primeira vez clona o material (as latas clonadas compartilham o original). */
 export function setLabel(root: THREE.Object3D, map: THREE.Texture, clone = true) {
   root.traverse((o) => {

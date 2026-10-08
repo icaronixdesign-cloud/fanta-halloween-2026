@@ -57,7 +57,7 @@ const original = (n) => gltf.animations.find((a) => a.name === n);
 
 // clipes preparados como no jackHero.ts (cópias: os originais servem para a lógica antiga)
 const prepared = {};
-for (const n of ['idle_hold', 'offer_idle', 'drink']) prepared[n] = smoothClip(closeLoop(original(n).clone()), 0.06, true);
+for (const n of ['idle_hold', 'offer_idle', 'drink']) prepared[n] = smoothClip(closeLoop(original(n).clone()), 0.06, true, 60);
 prepared.drink_in = smoothClip(original('drink_in').clone(), 0.03, false);
 const WARP = motionWarp(model, prepared.drink_in, [
   { bone: bones.prop_can, at: new THREE.Vector3(0, 0, 0) },
