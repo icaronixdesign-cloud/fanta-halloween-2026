@@ -13,7 +13,7 @@ export interface CinemaPromoCopy {
   /** Detalhe da oferta, abaixo do botão. */
   offer: { label: string; title: string; text: string };
   /** Textos impressos nos dois ingressos (só visuais; o detalhe acessível é o da oferta). */
-  ticket: { brand: string; discount: string; note: string; stub: string };
+  ticket: { brand: string; discount: string; note: string; stub: string; cta: string };
 }
 
 export const CINEMA_PROMO: CinemaPromoCopy = {
@@ -27,5 +27,5 @@ export const CINEMA_PROMO: CinemaPromoCopy = {
     title: '50% off em dois ingressos para o cinema',
     text: 'Escolha seu filme de terror favorito e viva a noite mais arrepiante do ano. Cadastre-se e ganhe 50% off em dois ingressos.',
   },
-  ticket: { brand: 'Fanta × Cinemark', discount: '50% off', note: 'Sessão de terror · 2 ingressos', stub: 'Entrada' },
+  ticket: { brand: 'Fanta × Cinemark', discount: '50% off', note: 'Sessão de terror · 2 ingressos', stub: 'Entrada', cta: 'Registre-se já' },
 };

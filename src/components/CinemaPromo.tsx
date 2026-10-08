@@ -144,12 +144,22 @@ export function CinemaPromo({ reducedMotion, finePointer }: Props) {
           <p className="cinema-promo__lead">{copy.lead}</p>
           <div className="cinema-promo__offer">
             <h3 className="visually-hidden">{copy.offer.title}</h3>
-            <div className="cinema-promo__tickets" aria-hidden="true">
+            {/* o próprio par de ingressos é o botão de cadastro */}
+            <a
+              className="cinema-promo__tickets"
+              href={copy.cta.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${copy.ticket.cta}: ${copy.offer.title} (abre em nova aba)`}
+            >
               {[2, 1].map((n) => (
-                <div key={n} className={`cinema-promo__ticket cinema-promo__ticket--${n === 1 ? 'front' : 'back'}`}>
+                <div key={n} className={`cinema-promo__ticket cinema-promo__ticket--${n === 1 ? 'front' : 'back'}`} aria-hidden="true">
                   <div className="cinema-promo__ticket-main">
                     <p className="cinema-promo__ticket-brand">{copy.ticket.brand}</p>
-                    <p className="cinema-promo__ticket-discount">{copy.ticket.discount}</p>
+                    <p className="cinema-promo__ticket-discount" aria-hidden="true">
+                      <span className="cinema-promo__ticket-off">{copy.ticket.discount}</span>
+                      {n === 1 && <span className="cinema-promo__ticket-cta">{copy.ticket.cta}</span>}
+                    </p>
                     <p className="cinema-promo__ticket-note">{copy.ticket.note}</p>
                   </div>
                   <div className="cinema-promo__ticket-stub">
@@ -159,16 +169,9 @@ export function CinemaPromo({ reducedMotion, finePointer }: Props) {
                   </div>
                 </div>
               ))}
-            </div>
+            </a>
             <p className="cinema-promo__offer-text">{copy.offer.text}</p>
           </div>
-          <a className="button cinema-promo__cta" href={copy.cta.href} target="_blank" rel="noopener noreferrer">
-            {copy.cta.label}
-            <svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true">
-              <path d="M7 17L17 7M9 7h8v8" fill="none" stroke="currentColor" strokeWidth="2.4" />
-            </svg>
-            <span className="visually-hidden"> (abre em nova aba)</span>
-          </a>
         </div>
       </div>
     </section>
