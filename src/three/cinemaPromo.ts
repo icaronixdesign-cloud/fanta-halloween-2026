@@ -95,6 +95,8 @@ export interface CinemaPromo {
   /** 0–1: fração da linha do tempo (o componente faz o mapa a partir do scroll). */
   setProgress(p: number): void;
   setPointer(x: number, y: number): void;
+  /** Retângulo da tela do notebook em frações do canvas (0–1); { x: 0, y: 0, w: 1, h: 1 } = tela cheia. */
+  setScreen(x: number, y: number, w: number, h: number): void;
   dispose(): void;
 }
 
@@ -479,6 +481,7 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
   let width = 0;
   let height = 0;
   let layout = layoutFor(16 / 9);
+  const view = { x: 0, y: 0, w: 1, h: 1 };
   let tTarget = opts.reduced ? DURATION : 0;
   let tNow = tTarget;
   let active = true;
@@ -510,12 +513,40 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
     width = w;
     height = h;
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+    // o enquadramento (retrato/paisagem) segue a tela cheia, que é onde a cena termina
     layout = layoutFor(w / h);
     camera.fov = layout.fov;
+    applyView();
+  }
+
+  /**
+   * Tela do notebook: o canvas cobre sempre a viewport, mas a câmera projeta o quadro inteiro dentro do retângulo
+   * da tela (setViewOffset) e só essa área é desenhada (scissor). Ao ampliar, o retângulo cresce até a tela cheia.
+   */
+  function applyView() {
+    if (!width || !height) return;
+    const full = view.w > 0.999 && view.h > 0.999;
+    const rw = Math.max(1, view.w * width);
+    const rh = Math.max(1, view.h * height);
+    if (full) {
+      camera.aspect = width / height;
+      camera.clearViewOffset();
+      renderer.setScissorTest(false);
+    } else {
+      camera.aspect = rw / rh;
+      camera.setViewOffset(rw, rh, -view.x * width, -view.y * height, width, height);
+      renderer.setScissorTest(true);
+      // só a parte da tela que cai dentro do canvas (em retrato ela passa das bordas no fim do zoom)
+      const sx = Math.max(0, view.x * width);
+      const sy = Math.max(0, view.y * height);
+      const ex = Math.min(width, view.x * width + rw);
+      const ey = Math.min(height, view.y * height + rh);
+      renderer.setScissor(sx, height - ey, Math.max(1, ex - sx), Math.max(1, ey - sy));
+    }
     camera.updateProjectionMatrix();
-    const scale = (h * renderer.getPixelRatio()) / (2 * Math.tan(THREE.MathUtils.degToRad(layout.fov / 2)));
+    const scale = ((full ? height : rh) * renderer.getPixelRatio()) / (2 * Math.tan(THREE.MathUtils.degToRad(layout.fov / 2)));
     energyMat.uniforms.uScale.value = scale;
+    callMat.uniforms.uScale.value = scale;
     burstMat.uniforms.uScale.value = scale;
   }
 
@@ -683,6 +714,12 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
     setProgress(p) {
       if (opts.reduced) return;
       tTarget = THREE.MathUtils.clamp(p, 0, 1) * DURATION;
+      kick();
+    },
+    setScreen(x, y, w, h) {
+      if (view.x === x && view.y === y && view.w === w && view.h === h) return;
+      Object.assign(view, { x, y, w, h });
+      applyView();
       kick();
     },
     setPointer(px, py) {

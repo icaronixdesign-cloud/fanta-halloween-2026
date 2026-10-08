@@ -17,11 +17,42 @@ interface Props {
 /** Trecho do scroll que percorre a animação (o resto é a chegada e o painel parado para ler). */
 const PLAY_FROM = 0.04;
 const PLAY_TO = 0.8;
+/** Trecho do scroll em que o notebook amplia até a tela dele virar a viewport inteira. */
+const ZOOM_FROM = 0.005;
+const ZOOM_TO = 0.13;
 
 const smooth = (a: number, b: number, x: number) => {
   const t = Math.min(Math.max((x - a) / (b - a), 0), 1);
   return t * t * (3 - 2 * t);
 };
+
+interface ScreenRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Quanto a tela cresceu desde o notebook (1 no começo): o aro e a base crescem junto. */
+  scale: number;
+}
+
+/**
+ * Tela do notebook (px da viewport) para um zoom z (0 = notebook inteiro no centro, 1 = tela cheia). O notebook
+ * cresce por igual (sem deformar) até a tela dele cobrir a viewport: em paisagem ela tem a proporção da viewport;
+ * em retrato é 16:10 e passa das bordas laterais, e no fim a projeção coincide com a da tela cheia (sem salto).
+ */
+function screenRect(W: number, H: number, z: number): ScreenRect {
+  const portrait = W / H < 1.15;
+  const w0 = portrait ? W * 0.84 : W * 0.56;
+  const h0 = portrait ? w0 / 1.6 : H * 0.56;
+  const end = Math.max(W / w0, H / h0);
+  // escala exponencial: a aproximação parece ter velocidade constante
+  const scale = Math.pow(end, z);
+  const cx = W / 2;
+  const cy = H * (portrait ? 0.43 : 0.46) + (H / 2 - H * (portrait ? 0.43 : 0.46)) * z;
+  const w = w0 * scale;
+  const h = h0 * scale;
+  return { x: cx - w / 2, y: cy - h / 2, w, h, scale };
+}
 
 export function CinemaPromo({ reducedMotion, finePointer }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
@@ -29,6 +60,9 @@ export function CinemaPromo({ reducedMotion, finePointer }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<Scene | null>(null);
   const progressRef = useRef(0);
+  const viewRef = useRef({ x: 0, y: 0, w: 1, h: 1 });
+  const lidRef = useRef<HTMLDivElement>(null);
+  const baseRef = useRef<HTMLDivElement>(null);
   const visible = useInView(sectionRef, '0px');
   const [load, setLoad] = useState(false);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -65,6 +99,8 @@ export function CinemaPromo({ reducedMotion, finePointer }: Props) {
           return;
         }
         sceneRef.current = scene;
+        const v = viewRef.current;
+        scene.setScreen(v.x, v.y, v.w, v.h);
         scene.setProgress(progressRef.current);
       })
       .catch((error) => {
@@ -97,6 +133,45 @@ export function CinemaPromo({ reducedMotion, finePointer }: Props) {
       stage.style.setProperty('--panel', panel.toFixed(4));
       stage.style.setProperty('--hint', (1 - smooth(0.0, 0.05, progress)).toFixed(4));
       stage.dataset.panel = panel > 0.5 ? 'on' : 'off';
+
+      // notebook: a tela amplia junto com o começo do filme até ocupar a viewport (a cena desenha só dentro dela)
+      const z = smooth(ZOOM_FROM, ZOOM_TO, progress);
+      const W = stage.clientWidth;
+      const H = stage.clientHeight;
+      if (!W || !H) return;
+      const r = screenRect(W, H, z);
+      const portrait = W / H < 1.15;
+      const bezel = (portrait ? 7 : 12) * r.scale;
+      const full = z > 0.999;
+      stage.style.setProperty('--zoom', z.toFixed(4));
+      stage.dataset.screen = full ? 'full' : 'laptop';
+      const mount = mountRef.current;
+      if (mount) {
+        const radius = (portrait ? 4 : 6) * (1 - z);
+        const px = (v: number) => `${Math.max(0, v).toFixed(1)}px`;
+        mount.style.clipPath = full
+          ? ''
+          : `inset(${px(r.y)} ${px(W - r.x - r.w)} ${px(H - r.y - r.h)} ${px(r.x)} round ${radius.toFixed(1)}px)`;
+      }
+      const lid = lidRef.current;
+      if (lid) {
+        lid.style.transform = `translate(${(r.x - bezel).toFixed(1)}px, ${(r.y - bezel).toFixed(1)}px)`;
+        lid.style.width = `${(r.w + 2 * bezel).toFixed(1)}px`;
+        lid.style.height = `${(r.h + 2 * bezel).toFixed(1)}px`;
+        lid.style.setProperty('--bezel', `${bezel.toFixed(2)}px`);
+        lid.style.borderRadius = `${((portrait ? 12 : 18) * r.scale).toFixed(1)}px`;
+      }
+      const base = baseRef.current;
+      if (base) {
+        const bw = (r.w + 2 * bezel) * 1.14;
+        const bh = Math.max(8, (r.w + 2 * bezel) * 0.028);
+        base.style.transform = `translate(${(r.x + r.w / 2 - bw / 2).toFixed(1)}px, ${(r.y + r.h + bezel - 1).toFixed(1)}px)`;
+        base.style.width = `${bw.toFixed(1)}px`;
+        base.style.height = `${bh.toFixed(1)}px`;
+      }
+      const view = full ? { x: 0, y: 0, w: 1, h: 1 } : { x: r.x / W, y: r.y / H, w: r.w / W, h: r.h / H };
+      viewRef.current = view;
+      sceneRef.current?.setScreen(view.x, view.y, view.w, view.h);
     },
     !reducedMotion,
   );
@@ -119,13 +194,24 @@ export function CinemaPromo({ reducedMotion, finePointer }: Props) {
       aria-labelledby="cinema-title"
       data-reduced={reducedMotion}
     >
-      <div ref={stageRef} className="cinema-promo__stage" data-state={state} data-panel={reducedMotion ? 'on' : 'off'}>
+      <div
+        ref={stageRef}
+        className="cinema-promo__stage"
+        data-state={state}
+        data-panel={reducedMotion ? 'on' : 'off'}
+        data-screen={reducedMotion ? 'full' : 'laptop'}
+      >
+        <div className="cinema-promo__glow" aria-hidden="true" />
         <div
           ref={mountRef}
           className="cinema-promo__canvas"
           role="img"
           aria-label="Numa sala de cinema escura, o Pânico sai da luz da tela segurando um balde de pipoca; um vampiro de terno entra pela esquerda, estende a mão e puxa o balde no ar com um rastro roxo até a palma dele, depois pega uma Fanta Uva que flutuava à sua frente e a mostra"
         />
+
+        {/* notebook: aro em volta da tela (só a borda, o centro fica vazado sobre o canvas) e a base */}
+        <div ref={lidRef} className="cinema-promo__lid" aria-hidden="true" />
+        <div ref={baseRef} className="cinema-promo__base" aria-hidden="true" />
 
         <p className="cinema-promo__tag" aria-hidden="true">
           <span className="cinema-promo__tag-dot" />

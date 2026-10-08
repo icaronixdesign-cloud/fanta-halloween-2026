@@ -251,3 +251,92 @@
     animation: none;
   }
 }
+
+/* ---------------- notebook: a cena começa numa tela de notebook e amplia até a tela cheia ---------------- */
+
+/* luz da tela no ambiente escuro, só enquanto é notebook */
+.cinema-promo__glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 34% at 50% 46%, rgba(120, 138, 255, 0.14), transparent 72%),
+    radial-gradient(30% 8% at 50% 80%, rgba(150, 110, 255, 0.08), transparent 70%);
+  opacity: calc(1 - var(--zoom, 1));
+}
+
+.cinema-promo__stage::before {
+  opacity: var(--zoom, 1);
+}
+
+/* aro da tela: só a borda (o centro é vazado e deixa ver o canvas recortado embaixo) */
+.cinema-promo__lid {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 0;
+  border: var(--bezel, 12px) solid #0c0c0f;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.13),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.9),
+    0 40px 90px rgba(0, 0, 0, 0.65);
+  transform-origin: 0 0;
+}
+
+/* câmera no meio do aro de cima */
+.cinema-promo__lid::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(var(--bezel, 12px) * -0.5);
+  width: calc(var(--bezel, 12px) * 0.36);
+  height: calc(var(--bezel, 12px) * 0.36);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #3b3f55, #0a0a0d 70%);
+  transform: translate(-50%, -50%);
+}
+
+.cinema-promo__base {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 0;
+  border-radius: 2px 2px 18px 18px / 2px 2px 100% 100%;
+  background: linear-gradient(to bottom, #4a4a52 0%, #2a2a30 22%, #19191d 70%, #0d0d10 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+/* entalhe para abrir a tampa */
+.cinema-promo__base::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 13%;
+  height: 38%;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(to bottom, #101013, #1d1d22);
+  transform: translateX(-50%);
+}
+
+/* sombra no "chão" */
+.cinema-promo__base::after {
+  content: '';
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 70%;
+  height: 120%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.75), transparent);
+  z-index: -1;
+}
+
+.cinema-promo__stage[data-screen='full'] .cinema-promo__lid,
+.cinema-promo__stage[data-screen='full'] .cinema-promo__base,
+.cinema-promo__stage[data-screen='full'] .cinema-promo__glow {
+  display: none;
+}
