@@ -184,7 +184,6 @@
   background: #000;
   transition: --accent 0.5s ease;
   --q: 0;
-  --turn: 0;
 }
 
 .showcase[data-reduced='true'] .showcase__stage {
@@ -572,6 +571,16 @@
   pointer-events: none;
 }
 
+/* medidor do nome mais alto (FlavorShowcase): mesmo lugar do nome, fora do fluxo e invisível */
+.showcase__name--sizer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .showcase__name-inner {
   display: block;
 }
@@ -761,113 +770,103 @@
   opacity: 0.85;
 }
 
-.spin-controls__row {
+/* Giro: só play/pausa e uma linha fina; a bolinha corre a volta da lata (em laço enquanto toca) */
+.spin-controls {
   display: flex;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-/* barra de giro mais compacta */
-.spin-controls .icon-button {
-  width: 36px;
-  height: 36px;
-}
-
-.spin-controls .icon-button svg {
-  width: 16px;
-  height: 16px;
+  align-items: center;
+  gap: 12px;
 }
 
 .spin-controls .icon-button.is-play {
-  width: 40px;
-  height: 40px;
+  position: relative;
+  width: 34px;
+  height: 34px;
 }
 
+.spin-controls .icon-button svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* play pedido antes do vídeo carregar: um arco gira em volta do botão */
+.spin-controls[data-load='loading'] .icon-button.is-play::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: var(--accent);
+  animation: spin-ring 0.9s linear infinite;
+}
+
+@keyframes spin-ring {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.spin-controls[data-load='error'] .icon-button.is-play {
+  opacity: 0.4;
+}
+
+/* com o prefixo do grupo: vence o estilo global de input[type='range'] (base.css) */
+.spin-controls .spin-controls__line {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+}
+
+.spin-controls .spin-controls__line::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.spin-controls .spin-controls__line::-webkit-slider-thumb {
+  width: 8px;
+  height: 8px;
+  margin-top: -3.5px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+  transition: box-shadow 0.3s ease;
+}
+
+.spin-controls .spin-controls__line::-moz-range-track {
+  height: 1px;
+}
+
+.spin-controls .spin-controls__line::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+  transition: box-shadow 0.3s ease;
+}
+
+/* tocando: a bolinha acende na cor do sabor */
+.spin-controls[data-playing='true'] .spin-controls__line::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 12px var(--accent);
+}
+
+.spin-controls[data-playing='true'] .spin-controls__line::-moz-range-thumb {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 12px var(--accent);
+}
+
+/* no layout largo: logo abaixo da lista, o play centrado na coluna das miniaturas */
 .showcase__stage.is-wide .spin-controls {
-  width: min(100%, 232px);
-  margin-left: auto;
+  width: min(100%, 230px);
+  padding-left: 5px;
 }
 
-/* no layout largo a barra fica menor */
-.showcase__stage.is-wide .spin-controls .icon-button {
+.showcase__stage.is-wide .spin-controls .icon-button.is-play {
   width: 30px;
   height: 30px;
 }
 
 .showcase__stage.is-wide .spin-controls .icon-button svg {
-  width: 13px;
-  height: 13px;
-}
-
-.showcase__stage.is-wide .spin-controls .icon-button.is-play {
-  width: 33px;
-  height: 33px;
-}
-
-.showcase__stage.is-wide .spin-controls__label,
-.showcase__stage.is-wide .spin-controls__status {
-  font-size: 8.5px;
-}
-
-.spin-controls__slider {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-}
-
-.spin-controls__label {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-.spin-controls__readout {
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-3);
-}
-
-.spin-controls__readout span {
-  color: var(--ink);
-}
-
-.spin-controls__status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 6px;
-  margin-top: 8px;
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.spin-controls__status strong {
-  font-weight: 500;
-  color: var(--ink-2);
-}
-
-.spin-controls__dot {
-  width: 6px;
-  height: 6px;
-  margin-right: 4px;
-  border-radius: 50%;
-  background: var(--ink-3);
-}
-
-.spin-controls__dot[data-mode='manual'],
-.spin-controls__dot[data-mode='play'] {
-  background: var(--accent);
-}
-
-.spin-controls__dot[data-mode='returning'] {
-  background: var(--ink);
+  width: 12px;
+  height: 12px;
 }
 
 /* ── layout largo (desktop, tablet deitado) ── */
@@ -886,9 +885,9 @@
   width: min(25vw, 330px);
   display: flex;
   flex-direction: column;
-  /* controles logo abaixo da lista: o canto de baixo fica para o Jack */
+  /* play logo abaixo da lista: o canto de baixo fica para a fruta em destaque */
   justify-content: flex-start;
-  gap: clamp(16px, 2.6svh, 28px);
+  gap: clamp(14px, 2.2svh, 24px);
 }
 
 .showcase__stage.is-wide .flavor-picker__list {
@@ -896,15 +895,15 @@
   gap: 0;
 }
 
-/* Jack: entra andando pela esquerda na faixa de baixo e atravessa até o canto de baixo à direita */
+/* Jack: entra andando pela esquerda na faixa de baixo e para no vão entre o numeral e a lata */
 .showcase__jack {
   position: absolute;
   z-index: 4;
   left: 0;
   right: 0;
   bottom: 0;
-  /* em telas baixas cede para não encostar nos controles, que ficam logo acima */
-  height: min(clamp(280px, 47svh, 540px), calc(100svh - var(--header-h) - 360px));
+  /* --jack-fit (FlavorShowcase) encolhe a faixa, e ele junto, quando o vão é mais estreito que ele */
+  height: calc(clamp(280px, 47svh, 540px) * var(--jack-fit, 1));
   pointer-events: none;
   /* canela cortada pela borda: some num degradê em vez de um corte reto */
   -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent);
@@ -1014,14 +1013,8 @@
 }
 
 .showcase__stage.is-stacked .spin-controls {
-  max-width: 560px;
-  width: 100%;
+  width: min(100%, 420px);
   margin: 0 auto;
-}
-
-.showcase__stage.is-stacked .spin-controls__status {
-  justify-content: center;
-  margin-top: 4px;
 }
 
 @media (max-height: 560px) {
@@ -1070,22 +1063,8 @@
     white-space: nowrap;
   }
 
-  .showcase__stage.is-wide .spin-controls__status {
-    display: none;
-  }
-
   .showcase__stage.is-wide .showcase__name {
     margin-top: 8px;
     font-size: min(calc(100cqi / (var(--len) * 0.56)), 15svh);
   }
-
-  .showcase__stage.is-wide .spin-controls .icon-button:not(.is-play) {
-    display: none;
-  }
-
-  .showcase__stage.is-wide .spin-controls__label {
-    white-space: nowrap;
-    font-size: 10px;
-  }
-
 }

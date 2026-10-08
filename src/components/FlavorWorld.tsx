@@ -70,11 +70,13 @@ function computeSlots(W: number, H: number, can: Box, wide: boolean, intro: Box 
   const slots: Slots = {};
   if (wide) {
     const rightW = W - can.right;
-    const bandTop = list ? list.bottom + 14 : H * 0.3;
-    const bandBottom = controls ? controls.top - 14 : H * 0.86;
+    // Fruta em destaque: canto de baixo à direita, na faixa livre abaixo da lista e do play.
+    const above = controls ?? list;
+    const bandTop = above ? above.bottom + 18 : H * 0.3;
+    const bandBottom = H - Math.max(36, H * 0.06);
     const band = Math.max(0, bandBottom - bandTop);
     const heroS = Math.min(band * 0.94, rightW * 0.95, H * 0.37);
-    if (heroS > 70) slots.hero = { x: can.right + rightW * 0.44, y: (bandTop + bandBottom) / 2, s: heroS };
+    if (heroS > 70) slots.hero = { x: can.right + rightW * 0.46, y: (bandTop + bandBottom) / 2, s: heroS };
 
     if (intro) {
       const zoneTop = Math.max(64, H * 0.075);

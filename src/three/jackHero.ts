@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { FLAVOR_ACCENT, FLAVOR_GLOW, FLAVOR_IDS, damp, radialTexture, setLabel, smooth } from './common';
+import {
+  FLAVOR_ACCENT, FLAVOR_GLOW, FLAVOR_IDS, animatedPose, closeLoop, damp, motionWarp, radialTexture, setLabel, smooth, smoothClip,
+} from './common';
+import { createDrinkState, drinkMix, drinkStep, warpTime } from './drinkMotion';
 
 /**
  * Hero 3D: o Jack (abóbora) em gravidade zero, cercado pelas seis latas da coleção.
@@ -280,12 +283,24 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
   scene.add(halo);
 
   // ---------------------------------------------------------------- animação
-  const mixer = new THREE.AnimationMixer(model);
-  const clip = (n: string) => {
+  const anim = (n: string) => {
     const c = char.animations.find((a) => a.name === n);
     if (!c) throw new Error(`clipe ausente: ${n}`);
-    return mixer.clipAction(c);
+    return c;
   };
+  // os loops saíram do Blender com a emenda aberta (o cabo da abóbora pulava a cada volta) e as chaves ligadas por
+  // retas; a subida do gole também tem as quinas arredondadas, mas pouco (o começo e o fim continuam exatos)
+  for (const n of ['idle_hold', 'offer_idle', 'drink']) smoothClip(closeLoop(anim(n)), 0.06, true);
+  smoothClip(anim('drink_in'), 0.03, false);
+  // a subida é tocada pelo caminho da lata, da mão no quadril e do rosto (ver drinkMotion.ts)
+  const drinkWarp = motionWarp(model, anim('drink_in'), [
+    { bone: bones.prop_can, at: new THREE.Vector3(0, 0, 0) },
+    { bone: bones.prop_can, at: new THREE.Vector3(0, CAN_H, 0) },
+    { bone: bones.head, at: new THREE.Vector3(0, 0.16, 0.16) },
+    { bone: bones.hand_L, at: new THREE.Vector3(0, 0, 0) },
+  ]);
+  const mixer = new THREE.AnimationMixer(model);
+  const clip = (n: string) => mixer.clipAction(anim(n));
   const idle = clip('idle_hold').play();
   const offer = clip('offer');
   offer.setLoop(THREE.LoopOnce, 1);
@@ -301,8 +316,8 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
   const offerDur = clipsInfo.clips.offer?.duration ?? 2;
   const swapDur = clipsInfo.clips.swap?.duration ?? 2.4;
   const swapAt = clipsInfo.clips.swap?.events?.swapLabel ?? 0.86;
-  // gole em duas partes, com o tempo controlado aqui: `drink_in` (da oferta até a lata virada na boca,
-  // tocado para a frente ao segurar e para trás ao soltar) e o loop `drink` (engolidas), que começa
+  // gole em duas partes, com o tempo controlado em drinkMotion.ts: `drink_in` (da oferta até a lata virada na
+  // boca, tocado para a frente ao segurar e para trás ao soltar) e o loop `drink` (engolidas), que começa
   // exatamente onde `drink_in` termina
   const drinkInAct = clip('drink_in').play();
   drinkInAct.paused = true;
@@ -313,8 +328,7 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
   const drinkInDur = clipsInfo.clips.drink_in?.duration ?? 0.8;
   const drinkDur = clipsInfo.clips.drink?.duration ?? 1.6;
   const gulpAt = [clipsInfo.clips.drink?.events?.gulp1 ?? 0.38, clipsInfo.clips.drink?.events?.gulp2 ?? 1.18];
-  const headRest = bones.head.quaternion.clone();
-  const neckRest = bones.neck.quaternion.clone();
+  const lookPose = animatedPose([bones.head, bones.neck]);
 
   // ---------------------------------------------------------------- estado e loop
   let target = 0;
@@ -354,12 +368,8 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
   let pending = 0;
   const SWAP_RATE = 1.2;
   let drinkWant = false;
-  let drinkPhase: 'off' | 'in' | 'loop' | 'out' = 'off';
-  let inT = 0; // tempo em drink_in (sobe ao segurar, desce ao soltar)
-  let loopT = 0; // tempo no loop drink
-  let loopW = 0; // 0 = drink_in, 1 = loop (troca curta entre os dois)
+  const sipState = createDrinkState();
   let drinkHeld = 0; // segundos bebendo sem soltar: o brilho da abóbora cresce
-  const OUT_RATE = 1.15; // abaixar a lata um pouco mais rápido que levantar
   const hitSphere = new THREE.Sphere(new THREE.Vector3(), 0.22);
   const hitBox = new THREE.Box3();
   const SLIDE_A = 0.2; // a fileira desliza entre estes instantes do clipe, com o meio em swapLabel
@@ -471,44 +481,19 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
       }
     }
 
-    // gole: só na vitrine e fora de uma troca. Segurando: drink_in para a frente e depois o loop.
-    // Soltando: volta do loop para o fim de drink_in (troca curta) e toca drink_in para trás até a oferta.
+    // gole: só na vitrine e fora de uma troca. Segurando: a lata sobe (drink_in) e entra o loop; soltando: o loop
+    // sai enquanto a lata já desce até a oferta. Arrancada, frenagem e inversões em drinkMotion.ts.
     const canDrink = drinkWant && !swap && p >= PICK_FROM - 0.03;
     if (opts.reduced) {
-      drinkPhase = canDrink ? 'loop' : 'off';
-      inT = canDrink ? drinkInDur : 0;
-      loopW = canDrink ? 1 : 0;
-      loopT = 0;
-    } else if (canDrink) {
-      if (drinkPhase === 'off' || drinkPhase === 'out') drinkPhase = 'in';
-      if (drinkPhase === 'in') {
-        inT += dt;
-        if (inT >= drinkInDur) {
-          inT = drinkInDur;
-          drinkPhase = 'loop';
-          if (loopW < 0.01) loopT = 0; // o loop começa na pose em que drink_in termina
-        }
-      }
-      if (drinkPhase === 'loop') {
-        loopT += dt;
-        loopW = Math.min(1, loopW + dt / 0.12);
-      }
-    } else if (drinkPhase !== 'off') {
-      drinkPhase = 'out';
-      loopT += dt; // o loop continua enquanto sai, sem congelar no meio da engolida
-      loopW = Math.max(0, loopW - dt / 0.2);
-      if (loopW === 0) inT -= dt * OUT_RATE;
-      if (inT <= 0) {
-        inT = 0;
-        drinkPhase = 'off';
-      }
+      sipState.phase = canDrink ? 'loop' : 'off';
+      sipState.p = sipState.ps = sipState.loopU = canDrink ? 1 : 0;
+      sipState.v = sipState.pv = sipState.loopT = 0;
     }
-    drinkHeld = drinkPhase === 'loop' ? drinkHeld + dt : Math.max(0, drinkHeld - dt * 2);
-    drinkInAct.time = Math.min(inT, drinkInDur - 0.001);
-    drinkAct.time = loopT % drinkDur;
-    // na pontinha (lata saindo/voltando à pose de oferta) o peso entra/sai em 80 ms: some o salto entre a
-    // respiração de offer_idle e o primeiro quadro de drink_in
-    const wDrink = (drinkPhase === 'off' ? 0 : Math.min(1, inT / 0.08 + loopW)) * (1 - wSwap);
+    const sip = opts.reduced ? drinkMix(sipState, drinkDur) : drinkStep(sipState, canDrink, dt, drinkDur);
+    drinkHeld = sipState.phase === 'loop' ? drinkHeld + dt : Math.max(0, drinkHeld - dt * 2);
+    drinkInAct.time = Math.min(warpTime(drinkWarp, sip.progress), drinkInDur - 0.001);
+    drinkAct.time = sip.loopTime;
+    const wDrink = sip.weight * (1 - wSwap);
 
     // corpo: idle → oferta guiada pelo scroll → oferta em loop (troca e gole entram por cima)
     const wOffer = smooth(0.56, 0.66, p);
@@ -518,17 +503,17 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
     offer.setEffectiveWeight(wOffer * (1 - wOfferIdle) * base);
     offerIdle.setEffectiveWeight(wOffer * wOfferIdle * base);
     swapAct.setEffectiveWeight(wSwap);
-    drinkInAct.setEffectiveWeight(wDrink * (1 - loopW));
-    drinkAct.setEffectiveWeight(wDrink * loopW);
+    drinkInAct.setEffectiveWeight(wDrink * (1 - sip.loop));
+    drinkAct.setEffectiveWeight(wDrink * sip.loop);
     offer.time = THREE.MathUtils.clamp((p - 0.58) / 0.22, 0, 1) * (offerDur - 0.001);
     // gravidade zero: sobe, gira 360° (lento nas pontas) e pousa antes da oferta
     const air = smooth(0.18, 0.3, p) * (1 - smooth(0.5, 0.6, p));
     const turn = smooth(0.18, 0.56, p);
     model.position.y = air * (0.07 + Math.sin(time * 1.6) * 0.012);
     model.rotation.set(air * 0.06 * Math.sin(time * 0.9), turn * Math.PI * 2, air * 0.05 * Math.cos(time * 1.1));
-    bones.head.quaternion.copy(headRest);
-    bones.neck.quaternion.copy(neckRest);
+    lookPose.restore();
     mixer.update(opts.reduced ? 0 : dt);
+    lookPose.capture();
 
     // olhar segue o cursor (aditivo sobre a animação)
     lookX = damp(lookX, pointerX, 4, dt);
@@ -543,8 +528,8 @@ export async function createJackHero(canvas: HTMLCanvasElement, opts: Options): 
     // brilho de vela
     const flick = 0.82 + 0.1 * Math.sin(time * 7.3) + 0.06 * Math.sin(time * 13.1 + 1.7) + 0.04 * Math.sin(time * 23.9 + 0.4);
     // gole: a Fanta acende a abóbora; pulso a cada engolida (0,32 s e 0,96 s do loop) e brilho que cresce
-    const lt = loopT % drinkDur;
-    const gulp = loopW * gulpAt.reduce((s, g) => s + Math.exp(-(((lt - g) / 0.09) ** 2)), 0);
+    const lt = sip.loopTime;
+    const gulp = sip.loop * gulpAt.reduce((s, g) => s + Math.exp(-(((lt - g) / 0.09) ** 2)), 0);
     const fill = Math.min(1, drinkHeld / 3);
     const glow = 1 + wDrink * (0.18 + 0.5 * fill + 0.3 * gulp);
     if (headMat) headMat.emissiveIntensity = 1.9 * flick * glow;

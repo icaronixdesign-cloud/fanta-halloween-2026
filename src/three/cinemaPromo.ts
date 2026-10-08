@@ -32,16 +32,34 @@ interface CamKey {
   yaw: number;
 }
 
+/**
+ * A lata em destaque (referências `cinema-1` e `cinema-2` do frame `ref-cinema` no Figma). Posições em fração da tela
+ * (0–1 a partir da esquerda/do topo), altura em fração da altura da tela, giros em graus (roll positivo = topo para
+ * a esquerda).
+ */
+interface Hero {
+  /** Flutuando em primeiro plano enquanto o vampiro puxa o balde (cinema-1). */
+  float: { x: number; y: number; h: number; roll: number };
+  /** Na mão direita, trazida em direção à câmera como se o braço esticasse (cinema-2). `push` é a fração da distância
+   * câmera→mão em que a lata fica; `dx`/`dy` deslocam na tela. */
+  hold: { push: number; h: number; roll: number; dx: number; dy: number };
+}
+
 interface Layout {
   fov: number;
   pitch: number;
   keys: CamKey[];
+  hero: Hero;
 }
 
-// paisagem: os dois em cena; no fim o vampiro fica no terço esquerdo e o texto da promoção à direita.
+// paisagem: os dois em cena; quando o vampiro chama a lata a câmera fecha nele (cabeça até a cintura, no terço
+// esquerdo) e a lata termina grande na mão dele, ao lado do texto da promoção.
 // retrato: a câmera acompanha a ação (Pânico → vampiro → os dois → vampiro), que termina na metade de cima.
 function layoutFor(aspect: number): Layout {
   if (aspect > 1.15) {
+    // enquadramento final (cinema-2): ~0,9 m de altura visível, da cabeça (topo a ~12% da altura) à barriga; o
+    // vampiro a ~27% da largura, então o alvo da câmera anda para a direita conforme a tela fica mais larga
+    const endX = -0.97 + 0.21 * 0.9 * aspect;
     return {
       fov: 30,
       pitch: 4,
@@ -50,9 +68,14 @@ function layoutFor(aspect: number): Layout {
         { t: 2.4, at: [0.7, 1.1, -1.5], dist: 6.4, yaw: 3 },
         { t: 3.6, at: [0.0, 1.1, -0.7], dist: 7.0, yaw: 0 },
         { t: 6.2, at: [0.05, 1.12, -0.6], dist: 6.9, yaw: 0 },
-        { t: 7.7, at: [-0.55, 1.2, -0.1], dist: 5.4, yaw: -2 },
-        { t: 10, at: [-0.08, 1.18, 0.0], dist: 4.9, yaw: -5 },
+        { t: 7.15, at: [-0.3, 1.18, -0.3], dist: 6.1, yaw: -1 },
+        { t: 8.5, at: [endX + 0.06, 1.58, 0.25], dist: 1.9, yaw: -4 },
+        { t: 10, at: [endX + 0.07, 1.59, 0.25], dist: 1.75, yaw: -5 },
       ],
+      hero: {
+        float: { x: 0.115, y: 0.62, h: 0.42, roll: 8.6 },
+        hold: { push: 0.6, h: 0.4, roll: 21, dx: 0, dy: 0.06 },
+      },
     };
   }
   const narrow = aspect < 0.8;
@@ -67,11 +90,15 @@ function layoutFor(aspect: number): Layout {
       { t: 4.3, at: [-1.15, 1.12, 0.0], dist: 5.2, yaw: 0 },
       { t: 5.0, at: [0.05, 1.15, -0.6], dist: narrow ? 7.6 : 6.8, yaw: 0 },
       { t: 6.75, at: [-0.45, 1.2, -0.2], dist: narrow ? 6.6 : 6.0, yaw: -2 },
-      // a lata vem da esquerda até a mão direita
-      { t: 7.35, at: [-1.25, 1.18, 0.25], dist: narrow ? 5.2 : 4.8, yaw: -2 },
-      { t: 8.2, at: [-0.95, 1.2, 0.1], dist: narrow ? 4.4 : 4.0, yaw: -4 },
-      { t: 10, at: [-0.98, 0.98, 0.15], dist: narrow ? 4.7 : 4.2, yaw: -6 },
+      // a lata vem da esquerda até a mão direita e a câmera fecha no vampiro (metade de cima da tela)
+      { t: 7.35, at: [-1.1, 1.2, 0.2], dist: narrow ? 4.6 : 4.4, yaw: -2 },
+      { t: 8.5, at: [-0.84, 1.16, 0.2], dist: narrow ? 2.7 : 2.9, yaw: -4 },
+      { t: 10, at: [-0.84, 1.15, 0.2], dist: narrow ? 2.55 : 2.75, yaw: -5 },
     ],
+    hero: {
+      float: { x: 0.24, y: 0.74, h: 0.22, roll: 8.6 },
+      hold: { push: 0.62, h: 0.2, roll: 21, dx: 0, dy: 0.055 },
+    },
   };
 }
 
@@ -95,8 +122,6 @@ export interface CinemaPromo {
   /** 0–1: fração da linha do tempo (o componente faz o mapa a partir do scroll). */
   setProgress(p: number): void;
   setPointer(x: number, y: number): void;
-  /** Retângulo da tela do notebook em frações do canvas (0–1); { x: 0, y: 0, w: 1, h: 1 } = tela cheia. */
-  setScreen(x: number, y: number, w: number, h: number): void;
   dispose(): void;
 }
 
@@ -292,17 +317,27 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
   const vampRoot = bone(vampRig, 'root');
   const ghostRoot = bone(ghostRig, 'root');
   const ghostMats: THREE.MeshStandardMaterial[] = [];
+  const ghostOpaque = new Set<THREE.Material>();
   model.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.frustumCulled = false;
     const m = mesh.material as THREE.MeshStandardMaterial;
-    if (m.name === 'Vamp_Body') m.envMapIntensity = 1.3;
+    if (m.name === 'Vamp_Body') {
+      m.envMapIntensity = 1.3;
+      m.emissiveIntensity = 1.7; // íris âmbar brilhante (mapa emissivo 2K, quase todo preto)
+    }
   });
 
+  // a lata não fica presa ao empty 'Can': a cada quadro a pose dela mistura a do clipe com as poses em destaque
+  // (layout.hero). Fica fora do modelo, então não ganha reflexo no piso (addMirrors).
   const canModel = canGltf.scene;
   setLabel(canModel, label);
-  canNode.add(canModel);
+  canModel.updateMatrixWorld(true);
+  const canBox = new THREE.Box3().setFromObject(canModel);
+  const CAN_H = canBox.max.y - canBox.min.y;
+  const CAN_MID = (canBox.max.y + canBox.min.y) / 2;
+  scene.add(canModel);
 
   const mixer = new THREE.AnimationMixer(model);
   const action = mixer.clipAction(gltf.animations[0]);
@@ -314,7 +349,10 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
   // o Pânico escurece junto com o próprio reflexo (o reflexo usa uma cópia do material)
   model.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
-    if (m?.name === 'Ghost_Body') ghostMats.push(m);
+    if (m?.name === 'Ghost_Body') {
+      ghostMats.push(m);
+      if (!m.transparent) ghostOpaque.add(m);
+    }
   });
 
   // ---------------------------------------------------------------- cinema: tela, cortinas, chão
@@ -481,7 +519,6 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
   let width = 0;
   let height = 0;
   let layout = layoutFor(16 / 9);
-  const view = { x: 0, y: 0, w: 1, h: 1 };
   let tTarget = opts.reduced ? DURATION : 0;
   let tNow = tTarget;
   let active = true;
@@ -499,6 +536,23 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
   const releaseTop = new THREE.Vector3();
+  // lata em destaque
+  const HERO_D = 1.7; // distância da câmera quando flutua em primeiro plano (m)
+  const AX_X = new THREE.Vector3(1, 0, 0);
+  const AX_Y = new THREE.Vector3(0, 1, 0);
+  const AX_Z = new THREE.Vector3(0, 0, 1);
+  const camRight = new THREE.Vector3();
+  const camUp = new THREE.Vector3();
+  const pA = new THREE.Vector3();
+  const qA = new THREE.Quaternion();
+  const sA = new THREE.Vector3();
+  const cF = new THREE.Vector3();
+  const cH = new THREE.Vector3();
+  const cNow = new THREE.Vector3();
+  const qF = new THREE.Quaternion();
+  const qH = new THREE.Quaternion();
+  const qt = new THREE.Quaternion();
+  const dir = new THREE.Vector3();
 
   // topo do balde no instante em que ele se solta (origem da pipoca que pula)
   action.time = T_REL;
@@ -513,38 +567,11 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
     width = w;
     height = h;
     renderer.setSize(w, h, false);
-    // o enquadramento (retrato/paisagem) segue a tela cheia, que é onde a cena termina
+    camera.aspect = w / h;
     layout = layoutFor(w / h);
     camera.fov = layout.fov;
-    applyView();
-  }
-
-  /**
-   * Tela do notebook: o canvas cobre sempre a viewport, mas a câmera projeta o quadro inteiro dentro do retângulo
-   * da tela (setViewOffset) e só essa área é desenhada (scissor). Ao ampliar, o retângulo cresce até a tela cheia.
-   */
-  function applyView() {
-    if (!width || !height) return;
-    const full = view.w > 0.999 && view.h > 0.999;
-    const rw = Math.max(1, view.w * width);
-    const rh = Math.max(1, view.h * height);
-    if (full) {
-      camera.aspect = width / height;
-      camera.clearViewOffset();
-      renderer.setScissorTest(false);
-    } else {
-      camera.aspect = rw / rh;
-      camera.setViewOffset(rw, rh, -view.x * width, -view.y * height, width, height);
-      renderer.setScissorTest(true);
-      // só a parte da tela que cai dentro do canvas (em retrato ela passa das bordas no fim do zoom)
-      const sx = Math.max(0, view.x * width);
-      const sy = Math.max(0, view.y * height);
-      const ex = Math.min(width, view.x * width + rw);
-      const ey = Math.min(height, view.y * height + rh);
-      renderer.setScissor(sx, height - ey, Math.max(1, ex - sx), Math.max(1, ey - sy));
-    }
     camera.updateProjectionMatrix();
-    const scale = ((full ? height : rh) * renderer.getPixelRatio()) / (2 * Math.tan(THREE.MathUtils.degToRad(layout.fov / 2)));
+    const scale = (h * renderer.getPixelRatio()) / (2 * Math.tan(THREE.MathUtils.degToRad(layout.fov / 2)));
     energyMat.uniforms.uScale.value = scale;
     callMat.uniforms.uScale.value = scale;
     burstMat.uniforms.uScale.value = scale;
@@ -565,6 +592,26 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
       v.y += Math.sin(time * 53 + 1) * shake * 0.015;
     }
     camera.lookAt(v);
+    camera.updateMatrixWorld();
+    camRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+  }
+
+  /** Meia altura visível (m) a `d` metros da câmera. */
+  const halfH = (d: number) => Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * d;
+
+  /** Ponto da cena que aparece em (fx, fy) da tela, a `d` metros da câmera. */
+  function screenPoint(fx: number, fy: number, d: number, out: THREE.Vector3) {
+    const hh = halfH(d);
+    return out.set((fx * 2 - 1) * hh * camera.aspect, (1 - fy * 2) * hh, -d).applyMatrix4(camera.matrixWorld);
+  }
+
+  /** Orientação de frente para a câmera (rótulo = +Z da lata), com roll na tela, topo inclinado e giro no eixo. */
+  function heroQuat(rollDeg: number, tilt: number, yaw: number, out: THREE.Quaternion) {
+    out.copy(camera.quaternion);
+    out.multiply(qt.setFromAxisAngle(AX_Z, THREE.MathUtils.degToRad(rollDeg)));
+    out.multiply(qt.setFromAxisAngle(AX_X, tilt));
+    return out.multiply(qt.setFromAxisAngle(AX_Y, yaw));
   }
 
   function update(dt: number) {
@@ -596,9 +643,19 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
     // Pânico: sai do escuro no começo e volta para ele ao recuar
     {
       const dim = (0.06 + 0.94 * smooth(0.15, 1.7, t)) * (1 - 0.94 * smooth(7.8, 9.5, t));
+      // no close final ele some de vez (senão aparece escuro ao lado do texto)
+      const gone = 1 - smooth(8.3, 9.4, t);
       for (const m of ghostMats) {
         m.color.setScalar(dim);
         m.envMapIntensity = dim;
+        if (ghostOpaque.has(m)) {
+          m.opacity = gone;
+          const tr = gone < 0.999;
+          if (m.transparent !== tr) {
+            m.transparent = tr;
+            m.needsUpdate = true;
+          }
+        }
       }
     }
 
@@ -652,35 +709,69 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
     }
     kernels.instanceMatrix.needsUpdate = true;
 
-    // Fanta Uva flutuando: brilho e poça de luz até ser pega
-    const canOn = 1 - smooth(T_GRAB, T_GRAB + 0.6, t);
-    canNode.getWorldPosition(v);
-    v.y += 0.06;
-    canGlow.position.copy(v);
-    canGlow.scale.setScalar(0.42 + 0.06 * Math.sin(time * 2.4));
-    (canGlow.material as THREE.SpriteMaterial).opacity = 0.55 * canOn;
-    canLight.position.copy(v).add(v2.set(0, 0, 0.25));
-    canLight.intensity = 1.6 * (0.1 + 0.9 * canOn);
-    canPool.position.set(v.x, 0.004, v.z);
-    (canPool.material as THREE.MeshBasicMaterial).opacity = 0.5 * canOn;
+    // câmera (antes da lata: as poses em destaque são relativas a ela)
+    lookX = damp(lookX, pointerX, 3, dt);
+    lookY = damp(lookY, pointerY, 3, dt);
+    const shake = Math.max(0, 1 - Math.abs(t - T_CATCH) / 0.25) * (opts.reduced ? 0 : 1);
+    placeCamera(t, shake);
+
+    // Fanta Uva em destaque (Figma ref-cinema): entra pela esquerda junto com o vampiro e flutua grande em primeiro
+    // plano (cinema-1); quando ele a chama, voa num arco até a mão direita enquanto a câmera fecha nele, e fica
+    // grande e um pouco à frente do corpo, como se o braço esticasse para a câmera (cinema-2).
+    const hero = layout.hero;
+    const inW = smooth(2.5, 4.1, t);
+    const fly = smooth(T_CALL - 0.05, T_GRAB + 0.4, t);
+    canModel.visible = inW > 0.001;
+    //   pose flutuando, presa à câmera
+    const fhh = halfH(HERO_D);
+    screenPoint(THREE.MathUtils.lerp(-0.32, hero.float.x, inW), hero.float.y + Math.sin(time * 1.4) * 0.012, HERO_D, cF);
+    const sF = (hero.float.h * 2 * fhh) / CAN_H;
+    heroQuat(hero.float.roll + Math.sin(time * 0.8) * 1.5, 0.24, -0.35 + Math.sin(time * 0.5) * 0.12 + (1 - inW) * 1.4, qF);
+    //   pose na mão: o centro da lata no clipe, puxado pela linha de visão em direção à câmera
+    canNode.matrixWorld.decompose(pA, qA, sA);
+    pA.addScaledVector(v.set(0, 1, 0).applyQuaternion(qA), CAN_MID * sA.y);
+    dir.subVectors(pA, camera.position);
+    const dH = dir.length() * hero.hold.push;
+    cH.copy(camera.position).addScaledVector(dir.normalize(), dH);
+    const hhH = halfH(dH);
+    cH.addScaledVector(camRight, hero.hold.dx * 2 * hhH * camera.aspect);
+    cH.addScaledVector(camUp, -hero.hold.dy * 2 * hhH + Math.sin(time * 1.1) * 0.008 * hhH);
+    const settle = Math.sin(Math.PI * smooth(T_GRAB + 0.2, T_GRAB + 0.7, t)); // tranco ao encostar na mão
+    const sH = ((hero.hold.h * 2 * hhH) / CAN_H) * (1 + 0.045 * settle);
+    heroQuat(hero.hold.roll + Math.sin(time * 0.7) * 0.8, 0.2, -0.22, qH);
+    //   mistura: arco que sobe e desce até a mão
+    cNow.lerpVectors(cF, cH, fly).addScaledVector(camUp, Math.sin(Math.PI * fly) * 0.04 * 2 * halfH(THREE.MathUtils.lerp(HERO_D, dH, fly)));
+    const sNow = THREE.MathUtils.lerp(sF, sH, fly);
+    canModel.quaternion.slerpQuaternions(qF, qH, fly);
+    canModel.scale.setScalar(sNow);
+    canModel.position.copy(cNow).addScaledVector(v.set(0, 1, 0).applyQuaternion(canModel.quaternion), -CAN_MID * sNow);
+    canModel.updateMatrixWorld(true);
+    //   brilho atrás da lata, luz no rótulo e poça de luz embaixo enquanto flutua
+    const canSize = CAN_H * sNow;
+    dir.subVectors(cNow, camera.position).normalize();
+    canGlow.position.copy(cNow).addScaledVector(dir, canSize * 0.35);
+    canGlow.scale.setScalar(canSize * (2.3 + 0.12 * Math.sin(time * 2.4)));
+    (canGlow.material as THREE.SpriteMaterial).opacity = inW * (0.5 - 0.22 * fly);
+    canLight.position.copy(cNow).addScaledVector(dir, -canSize * 0.9);
+    canLight.distance = canSize * 4;
+    canLight.intensity = inW * (1.4 - 0.5 * fly);
+    canPool.position.copy(cNow).addScaledVector(camUp, -canSize * 0.62);
+    canPool.scale.set(canSize * 2.1, 1, canSize * 0.75);
+    (canPool.material as THREE.MeshBasicMaterial).opacity = 0.45 * inW * (1 - smooth(T_CALL, T_CALL + 0.3, t));
+    //   o poder da mão direita chamando a lata
     const calling = smooth(T_CALL - 0.2, T_CALL + 0.05, t) * (1 - smooth(T_GRAB - 0.05, T_GRAB + 0.25, t));
     palmR.localToWorld(v2.set(0, 0.06, -0.03));
     callMat.uniforms.uTime.value = time * 1.3;
     callMat.uniforms.uStrength.value = calling * 0.85;
     callMat.uniforms.uA.value.copy(v2);
-    callMat.uniforms.uB.value.copy(v);
-    callMat.uniforms.uC.value.copy(v2).lerp(v, 0.5).y += 0.12;
+    callMat.uniforms.uB.value.copy(cNow);
+    callMat.uniforms.uC.value.copy(v2).lerp(cNow, 0.5).y += 0.12;
     // a luz da palma passa para a mão direita enquanto ela chama a lata
     if (calling > power) {
       palmLight.position.copy(v2);
       palmLight.intensity = 2.2 * calling;
     }
 
-    // câmera
-    lookX = damp(lookX, pointerX, 3, dt);
-    lookY = damp(lookY, pointerY, 3, dt);
-    const shake = Math.max(0, 1 - Math.abs(t - T_CATCH) / 0.25) * (opts.reduced ? 0 : 1);
-    placeCamera(t, shake);
     renderer.render(scene, camera);
   }
 
@@ -714,12 +805,6 @@ export async function createCinemaPromo(canvas: HTMLCanvasElement, opts: Options
     setProgress(p) {
       if (opts.reduced) return;
       tTarget = THREE.MathUtils.clamp(p, 0, 1) * DURATION;
-      kick();
-    },
-    setScreen(x, y, w, h) {
-      if (view.x === x && view.y === y && view.w === w && view.h === h) return;
-      Object.assign(view, { x, y, w, h });
-      applyView();
       kick();
     },
     setPointer(px, py) {

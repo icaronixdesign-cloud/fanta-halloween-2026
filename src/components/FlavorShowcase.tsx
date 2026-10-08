@@ -57,12 +57,44 @@ function textIndexFor(cf: number, velocity: number, current: number): number {
   return current === ahead || current === behind ? current : clamp(Math.floor(cf), 0, COUNT - 1);
 }
 
-const MODE_LABEL: Record<ControlMode, string> = {
-  scroll: 'Rolagem',
-  manual: 'Manual',
-  returning: 'Voltando à rolagem',
-  play: 'Reprodução contínua',
-};
+/**
+ * Jack fica no vão entre o numeral e a lata. Borda esquerda da lata (fração do quadro 16:9) da metade de baixo do
+ * quadro para baixo, no ponto mais à esquerda do giro (medida nos vídeos: 0,366 na linha de 60%), com folga.
+ */
+const CAN_LEFT_LOW = 0.358;
+/** Largura do Jack de pé em relação à altura da faixa dele (≈0,44 m de corpo numa faixa de 0,88 m). */
+const JACK_WIDTH = 0.5;
+/** Fração do vão que ele ocupa: o resto é respiro dos dois lados. */
+const JACK_FILL = 0.86;
+/** Topo do talo em relação à faixa dele, de cima para baixo (a faixa sobra um pouco acima da cabeça). */
+const JACK_HEADROOM = 0.14;
+/** Respiro entre o fundo do título e o talo; inclui a flutuação do bloco do nome (até ±13 px). */
+const NAME_GAP = 24;
+/** Nome com mais linhas: o bloco mais alto que o título chega a ter. */
+const TALLEST = FLAVORS.reduce((a, b) => (b.nameLines.length > a.nameLines.length ? b : a));
+
+/** Posição de `element` dentro de `ancestor`, pela cadeia de offsetParent (sem transforms). */
+function offsetIn(element: HTMLElement, ancestor: HTMLElement): { left: number; top: number } {
+  let left = 0;
+  let top = 0;
+  for (let node: HTMLElement | null = element; node && node !== ancestor; node = node.offsetParent as HTMLElement | null) {
+    left += node.offsetLeft;
+    top += node.offsetTop;
+  }
+  return { left, top };
+}
+
+/** Caixa do texto do medidor do nome no palco: até onde as letras vão à direita e onde o bloco termina embaixo. */
+function nameExtent(sizer: HTMLElement, stage: HTMLElement): { right: number; bottom: number } {
+  const at = offsetIn(sizer, stage);
+  let right = 0;
+  // as letras são inline-block posicionadas em relação ao medidor (absoluto): a última de cada linha marca a borda
+  sizer.querySelectorAll('.showcase__name-line').forEach((line) => {
+    const last = line.lastElementChild as HTMLElement | null;
+    if (last) right = Math.max(right, last.offsetLeft + last.offsetWidth);
+  });
+  return { right: at.left + right, bottom: at.top + sizer.offsetHeight };
+}
 
 interface Props {
   reducedMotion: boolean;
@@ -82,12 +114,6 @@ function withLoaded(list: number[], priority: number[], keep: number): number[] 
 }
 
 /** Nome em linhas e letras, cada letra com seu índice para o escalonamento da animação. */
-/** Onde o Jack para (x -1…1 do canvas dele): o lado direito do corpo na borda direita do painel lateral. */
-function jackStopNdc(panel: HTMLElement, mount: HTMLElement): number {
-  const right = panel.offsetLeft + panel.offsetWidth - mount.offsetLeft;
-  return (right / mount.offsetWidth) * 2 - 1;
-}
-
 function NameLines({ flavor }: { flavor: Flavor }) {
   let charIndex = 0;
   return (
@@ -119,14 +145,15 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
   const listRef = useRef<HTMLOListElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<HTMLDivElement>(null);
-  const readoutRef = useRef<HTMLSpanElement>(null);
   const sliderRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLHeadingElement>(null);
   const worldRef = useRef<FlavorWorldHandle>(null);
   const jackMountRef = useRef<HTMLDivElement>(null);
+  const numeralRef = useRef<HTMLSpanElement>(null);
+  const nameSizerRef = useRef<HTMLParagraphElement>(null);
   const mediaRef = useRef<HTMLDivElement>(null);
   /** Últimos valores escritos por quadro: escrever o mesmo valor de novo ainda invalida o estilo. */
-  const written = useRef({ tick: 0, woken: -1, q: '', push: '', turn: '', layers: Array.from({ length: COUNT }, () => ({ o: '', v: '', z: '', f: '' })) });
+  const written = useRef({ tick: 0, woken: -1, q: '', push: '', layers: Array.from({ length: COUNT }, () => ({ o: '', v: '', z: '', f: '' })) });
   const jackRef = useRef<JackAdmirer | null>(null);
   const cueLearned = useRef(false);
 
@@ -192,6 +219,10 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
       anchorY: wide ? 0.5 : 0.52,
     });
   }, [stageSize, topSize.height, bottomSize.height, wide, flavor.aspect, flavor.safe]);
+  const framingRef = useRef<Framing | null>(null);
+  useEffect(() => {
+    framingRef.current = framing;
+  }, [framing]);
 
   // ───────────── troca do sabor em primeiro plano ─────────────
   const commitDisplayed = useCallback((index: number) => {
@@ -328,7 +359,43 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
     };
   }, []);
 
-  // ───────────── Jack admirando, no canto de baixo (layout largo) ─────────────
+  // ───────────── Jack admirando, no vão entre o numeral e a lata (layout largo) ─────────────
+  /**
+   * Para no meio do vão. Se o vão for estreito, a faixa dele (e ele junto) encolhe para não encostar na lata; se o
+   * título passa por cima do vão, a cabeça também não sobe até o nome mais alto (o tamanho não muda entre sabores).
+   */
+  const placeJack = useCallback(() => {
+    const jack = jackRef.current;
+    const mount = jackMountRef.current;
+    const stage = stageRef.current;
+    const f = framingRef.current;
+    if (!jack || !mount || !stage || !f) return;
+    const w = mount.offsetWidth;
+    if (!w) return;
+    const numeral = numeralRef.current;
+    const left = numeral ? numeral.offsetLeft + numeral.offsetWidth - mount.offsetLeft : 0;
+    const right = f.left + CAN_LEFT_LOW * f.width - mount.offsetLeft;
+    const center = (left + right) / 2;
+    const applied = Number(mount.style.getPropertyValue('--jack-fit')) || 1;
+    const base = mount.getBoundingClientRect().height / applied;
+    let fit = ((right - left) * JACK_FILL) / (JACK_WIDTH * base);
+    const sizer = nameSizerRef.current;
+    if (sizer) {
+      const name = nameExtent(sizer, stage);
+      if (center - (JACK_WIDTH * base * Math.min(fit, 1)) / 2 < name.right + 8) {
+        const floor = mount.offsetTop + mount.offsetHeight;
+        fit = Math.min(fit, (floor - name.bottom - NAME_GAP) / (1 - JACK_HEADROOM) / base);
+      }
+    }
+    fit = clamp(fit, 0.5, 1);
+    if (Math.abs(fit - applied) > 0.002) mount.style.setProperty('--jack-fit', fit.toFixed(3));
+    jack.setStop((center / w) * 2 - 1);
+    const safe = f.safeRect;
+    const cx = safe.left + safe.width / 2 - mount.offsetLeft;
+    const cy = safe.top + safe.height * 0.42 - mount.offsetTop;
+    jack.setTarget((cx / w) * 2 - 1, -((cy / mount.offsetHeight) * 2 - 1));
+  }, []);
+
   const jackWanted = near && wide;
   useEffect(() => {
     const mount = jackMountRef.current;
@@ -350,10 +417,7 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
           return;
         }
         jackRef.current = jack;
-        const panel = bottomRef.current;
-        if (panel && mount.offsetWidth) {
-          jack.setStop(jackStopNdc(panel, mount));
-        }
+        placeJack();
         const cf = chapter.current.current;
         jack.react(FLAVORS[displayedRef.current].accent);
         jack.setShown(chapter.current.ready && cf > -0.3 && cf < COUNT + 0.3);
@@ -366,7 +430,12 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
       mount.removeAttribute('data-ready');
       canvas.remove();
     };
-  }, [jackWanted, reducedMotion]);
+  }, [jackWanted, reducedMotion, placeJack]);
+
+  // a largura do numeral muda quando a fonte variável termina de carregar
+  useEffect(() => {
+    void document.fonts?.ready.then(placeJack);
+  }, [placeJack]);
 
   useEffect(() => {
     jackRef.current?.setActive(onStage);
@@ -493,7 +562,6 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
         onFrame: (frame: number, frameMode: ControlMode) => {
           if (index !== displayedRef.current) return;
           const total = FLAVORS[index].frameCount;
-          if (readoutRef.current) readoutRef.current.textContent = String(frame).padStart(3, '0');
           const slider = sliderRef.current;
           // Em modo manual o slider guarda a intenção da pessoa (teclado/arrasto), não o quadro
           // apresentado, que pode estar atrasado enquanto o vídeo carrega.
@@ -501,8 +569,6 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
             slider.value = String(frame);
             slider.setAttribute('aria-valuetext', `Quadro ${frame + 1} de ${total}`);
           }
-          const turn = (frame / (total - 1)).toFixed(3);
-          if (written.current.turn !== turn) slider?.style.setProperty('--turn', (written.current.turn = turn));
         },
         onModeChange: (value: ControlMode) => {
           if (index === displayedRef.current) setMode(value);
@@ -529,7 +595,6 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
     setLoadState(controller?.getLoadState() ?? 'empty');
     setNotice('');
     const frame = Math.round(controller?.getCurrentFrame() ?? 0);
-    if (readoutRef.current) readoutRef.current.textContent = String(frame).padStart(3, '0');
     if (sliderRef.current) sliderRef.current.value = String(frame);
   }, [displayed, reducedMotion]);
 
@@ -569,6 +634,21 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
         displayed: displayedRef.current,
         expectedFrame: (index: number, cf: number) => Math.round(frameAt(index, cf, COUNT)) % 180,
       })),
+    [],
+  );
+
+  // Diagnóstico do Jack: fase, centro do corpo (px da tela) e escala da faixa.
+  useEffect(
+    () =>
+      registerProbe('jack-sabores', () => {
+        const jack = jackRef.current;
+        const mount = jackMountRef.current;
+        if (!jack || !mount) return null;
+        const state = jack.getState();
+        const rect = mount.getBoundingClientRect();
+        const fit = Number(mount.style.getPropertyValue('--jack-fit')) || 1;
+        return { phase: state.phase, px: rect.left + ((state.x + 1) / 2) * rect.width, fit, height: rect.height };
+      }),
     [],
   );
 
@@ -653,24 +733,14 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
     ? { left: safeRect.left + safeRect.width / 2, top: safeRect.top + safeRect.height * 0.7 }
     : undefined;
 
+  // enquadramento, numeral e tamanho do palco mudam a cada render relevante: o vão do Jack acompanha
   useEffect(() => {
-    const mount = jackMountRef.current;
-    if (!mount || !safeRect) return;
-    const w = mount.offsetWidth;
-    const h = mount.offsetHeight;
-    if (!w || !h) return;
-    const cx = safeRect.left + safeRect.width / 2 - mount.offsetLeft;
-    const cy = safeRect.top + safeRect.height * 0.42 - mount.offsetTop;
-    jackRef.current?.setTarget((cx / w) * 2 - 1, -((cy / h) * 2 - 1));
-    // ele atravessa a faixa e para no canto de baixo à direita, embaixo dos controles
-    const panel = bottomRef.current;
-    if (panel) {
-      jackRef.current?.setStop(jackStopNdc(panel, mount));
-    }
+    placeJack();
   });
 
   const playing = mode === 'play';
   const loadingVideo = loadState === 'loading' && interacted;
+  const controlsLoad = loadState === 'error' ? 'error' : loadingVideo ? 'loading' : undefined;
 
   return (
     <section
@@ -801,10 +871,16 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
                 </span>
               </p>
             )}
+            {/* invisível: mede o nome mais alto, para a cabeça do Jack nunca subir até o título */}
+            <p ref={nameSizerRef} className="showcase__name showcase__name--sizer" aria-hidden="true" style={nameStyle(TALLEST)}>
+              <span className="showcase__name-inner">
+                <NameLines flavor={TALLEST} />
+              </span>
+            </p>
           </div>
         </div>
 
-        <span className="showcase__numeral" aria-hidden="true" key={`numeral-${flavor.id}`}>
+        <span ref={numeralRef} className="showcase__numeral" aria-hidden="true" key={`numeral-${flavor.id}`}>
           {flavor.number}
         </span>
         {wide && <div ref={jackMountRef} className="showcase__jack" aria-hidden="true" />}
@@ -836,79 +912,53 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
             </ol>
           </nav>
 
-          <div ref={controlsRef} className="spin-controls" role="group" aria-label={`Girar a lata de ${flavor.name}`}>
-            <div className="spin-controls__row">
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => selectFlavor((displayed - 1 + COUNT) % COUNT)}
-                aria-label={`Sabor anterior: ${FLAVORS[(displayed - 1 + COUNT) % COUNT].name}`}
-              >
+          {/* Só play/pausa e a linha do giro: a bolinha corre a volta em laço enquanto toca */}
+          <div
+            ref={controlsRef}
+            className="spin-controls"
+            role="group"
+            aria-label={`Girar a lata de ${flavor.name}`}
+            data-playing={playing ? 'true' : undefined}
+            data-load={controlsLoad}
+          >
+            <button
+              type="button"
+              className="icon-button is-play"
+              onClick={togglePlay}
+              aria-pressed={playing}
+              aria-label={playing ? 'Pausar giro contínuo' : 'Girar sozinha (reprodução contínua)'}
+            >
+              {playing ? (
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M15 5l-7 7 7 7" />
+                  <path d="M8 5v14M16 5v14" />
                 </svg>
-              </button>
-              <label className="spin-controls__slider">
-                <span className="spin-controls__label">
-                  Girar a lata
-                  <span className="spin-controls__readout" aria-hidden="true">
-                    <span ref={readoutRef}>000</span>/{String(flavor.frameCount - 1).padStart(3, '0')}
-                  </span>
-                </span>
-                <input
-                  ref={sliderRef}
-                  type="range"
-                  min={0}
-                  max={flavor.frameCount - 1}
-                  step={1}
-                  defaultValue={0}
-                  aria-valuetext="Quadro 1 de 180"
-                  onChange={(event) => onSliderInput(Number(event.currentTarget.value))}
-                  onPointerDown={() => {
-                    sliderHeld.current = true;
-                  }}
-                  onPointerUp={() => {
-                    sliderHeld.current = false;
-                  }}
-                  onPointerCancel={() => {
-                    sliderHeld.current = false;
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                className="icon-button is-play"
-                onClick={togglePlay}
-                aria-pressed={playing}
-                aria-label={playing ? 'Pausar giro contínuo' : 'Girar sozinha (reprodução contínua)'}
-              >
-                {playing ? (
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 5v14M16 5v14" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M7 5l12 7-12 7z" />
-                  </svg>
-                )}
-              </button>
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => selectFlavor((displayed + 1) % COUNT)}
-                aria-label={`Próximo sabor: ${FLAVORS[(displayed + 1) % COUNT].name}`}
-              >
+              ) : (
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M9 5l7 7-7 7" />
+                  <path d="M7 5l12 7-12 7z" />
                 </svg>
-              </button>
-            </div>
-            <p className="spin-controls__status">
-              <span className="spin-controls__dot" data-mode={mode} aria-hidden="true" />
-              Controle: <strong>{MODE_LABEL[mode]}</strong>
-              {loadingVideo && <span className="spin-controls__loading"> · carregando giro…</span>}
-              {loadState === 'error' && <span className="spin-controls__loading"> · capa (vídeo indisponível)</span>}
-            </p>
+              )}
+            </button>
+            <input
+              ref={sliderRef}
+              className="spin-controls__line"
+              type="range"
+              min={0}
+              max={flavor.frameCount - 1}
+              step={1}
+              defaultValue={0}
+              aria-label="Girar a lata"
+              aria-valuetext="Quadro 1 de 180"
+              onChange={(event) => onSliderInput(Number(event.currentTarget.value))}
+              onPointerDown={() => {
+                sliderHeld.current = true;
+              }}
+              onPointerUp={() => {
+                sliderHeld.current = false;
+              }}
+              onPointerCancel={() => {
+                sliderHeld.current = false;
+              }}
+            />
           </div>
         </div>
 

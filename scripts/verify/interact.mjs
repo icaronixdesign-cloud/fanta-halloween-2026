@@ -162,6 +162,25 @@ ok(pf && st.flavor === pf.replace('#sabor-', ''), `seleção por teclado ${pf} -
 await scrollToY(page, await sectionY(page, 'sabores', 2.5 / 6)); await sleep(1500);
 const jack = await page.evaluate(() => document.querySelector('.showcase__jack')?.dataset.ready);
 ok(jack === 'true', `Jack admirando no canto dos sabores (${jack})`);
+// ...parado no vão entre o numeral e a lata (borda da lata no ponto mais à esquerda do giro: 0,366 do quadro)
+await page.waitForFunction(() => window.__fantaDebug?.probe('jack-sabores')?.phase === 'standing', null, { timeout: 8000 }).catch(() => {});
+const spot = await page.evaluate(() => {
+  const j = window.__fantaDebug?.probe('jack-sabores');
+  const numeral = document.querySelector('.showcase__numeral').getBoundingClientRect();
+  const layer = document.querySelector('.showcase__layer.is-current');
+  const half = j ? j.height * 0.2 : 0;
+  return { phase: j?.phase, x: Math.round(j?.px ?? -1), left: Math.round((j?.px ?? 0) - half), right: Math.round((j?.px ?? 0) + half), numeral: Math.round(numeral.right), can: Math.round(layer.offsetLeft + 0.366 * layer.offsetWidth), fit: j?.fit };
+});
+ok(spot.phase === 'standing' && spot.left >= spot.numeral && spot.right <= spot.can, `Jack no vão numeral→lata: ${JSON.stringify(spot)}`);
+// fruta em destaque de volta no canto de baixo à direita (abaixo do play) e controle só com play/pausa + linha
+const corner = await page.evaluate(() => {
+  const flavor = document.querySelector('.showcase__stage').dataset.flavor;
+  const hero = document.querySelector(`.world__group[data-flavor="${flavor}"] .world__sprite.is-hero`);
+  const controls = document.querySelector('.spin-controls');
+  const h = hero?.getBoundingClientRect(); const c = controls.getBoundingClientRect();
+  return { opacity: hero ? +getComputedStyle(hero).opacity : 0, heroTop: Math.round(h?.top ?? 0), heroX: Math.round(h ? h.left + h.width / 2 : 0), controlsBottom: Math.round(c.bottom), controlsLeft: Math.round(c.left), buttons: controls.querySelectorAll('button').length, inputs: controls.querySelectorAll('input[type=range]').length, text: controls.textContent.trim() };
+});
+ok(corner.opacity > 0.5 && corner.heroTop > corner.controlsBottom && corner.heroX > corner.controlsLeft - 160 && corner.buttons === 1 && corner.inputs === 1 && corner.text === '', `fruta embaixo à direita e play enxuto: ${JSON.stringify(corner)}`);
 
 ok(log.length === 0, 'console/rede sem erros: ' + JSON.stringify(log));
 await browser.close();

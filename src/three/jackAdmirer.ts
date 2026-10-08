@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { damp } from './common';
+import { animatedPose, damp } from './common';
 
 /**
  * Jack na faixa de baixo da seção de sabores: na primeira vez que a seção aparece ele entra andando pela esquerda
- * (clipe `walk` do jack.glb, passos casados com o deslocamento), atravessa a faixa até o canto de baixo à direita e fica
+ * (clipe `walk` do jack.glb, passos casados com o deslocamento), para no vão entre o numeral e a lata e fica
  * admirando a lata gigante (clipe `admire` de jack-admire.glb: mãos juntas no peito, suspiro, balanço). Parado, o
  * corpo gira para a lata e a cabeça completa o olhar; a cada troca de sabor ele reage ("ooh") e o recorte de luz
  * toma a cor do sabor. O quadro corta na canela, como se ele andasse na borda de baixo da tela.
@@ -21,8 +21,6 @@ const FOV = 20;
 /** Velocidade andando (m/s); o clipe walk avança 0,26 m por ciclo de 1 s. */
 const SPEED = 0.68;
 const STRIDE_SPEED = 0.26;
-/** Meia-largura do corpo de perfil (m): para antes de encostar nos controles. */
-const HALF_BODY = 0.2;
 /** Andando, quase de perfil para a direita, com o rosto ainda à vista. */
 const WALK_YAW = 1.25;
 
@@ -31,8 +29,10 @@ export interface JackAdmirer {
   setShown(shown: boolean): void;
   /** Centro da lata em coordenadas -1…1 do próprio canvas (pode estar fora do quadro). */
   setTarget(x: number, y: number): void;
-  /** Onde ele para: borda esquerda dos controles, em x -1…1 do canvas. */
+  /** Onde ele para: centro do corpo, em x -1…1 do canvas. */
   setStop(x: number): void;
+  /** Fase e centro do corpo (x -1…1 do canvas), para diagnóstico. */
+  getState(): { phase: 'waiting' | 'walking' | 'standing'; x: number };
   /** Troca de sabor: reação curta e cor do recorte. */
   react(accent: string): void;
   setActive(active: boolean): void;
@@ -107,8 +107,8 @@ export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options
   };
   const walk = find(char.animations, 'walk').play();
   const admire = find(extra.animations, 'admire').play();
-  const headRest = bones.head.quaternion.clone();
-  const neckRest = bones.neck.quaternion.clone();
+  // olhar por cima da animação: o osso volta ao último valor animado, não ao repouso (ver animatedPose)
+  const lookPose = animatedPose([bones.head, bones.neck]);
 
   let width = 0;
   let height = 0;
@@ -141,7 +141,7 @@ export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options
   const timer = new THREE.Timer();
   timer.connect(document);
 
-  const stopX = () => stopNdc * halfW - HALF_BODY;
+  const stopX = () => stopNdc * halfW;
 
   function resize() {
     const w = canvas.clientWidth;
@@ -159,7 +159,7 @@ export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options
   function step(dt: number) {
     time += dt;
 
-    // ---- caminhada até a barra de play/pausa, desacelerando na chegada
+    // ---- caminhada até o vão entre o numeral e a lata, desacelerando na chegada
     if (phase === 'walking') {
       const dx = stopX() - x;
       const want = dx > 0.01 ? Math.min(SPEED, dx * 1.6 + 0.06) : 0;
@@ -198,9 +198,9 @@ export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options
     body.rotation.y = yaw;
     body.position.y = ooh * 0.012;
 
-    bones.head.quaternion.copy(headRest);
-    bones.neck.quaternion.copy(neckRest);
+    lookPose.restore();
     mixer.update(opts.reduced ? 0 : dt);
+    lookPose.capture();
     // ossos: X inclina para a frente (para cima = negativo), Y gira
     bones.neck.quaternion.multiply(q.setFromEuler(e.set(-headPitch * 0.35, headYaw * 0.35, 0)));
     bones.head.quaternion.multiply(q.setFromEuler(e.set(-headPitch * 0.65, headYaw * 0.65, 0)));
@@ -269,6 +269,9 @@ export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options
         x = stopX();
         kick();
       }
+    },
+    getState() {
+      return { phase, x: x / halfW };
     },
     react(accent) {
       rimTarget.set(accent).lerp(orange, 0.35);

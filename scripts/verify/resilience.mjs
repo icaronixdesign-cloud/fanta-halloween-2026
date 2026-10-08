@@ -101,8 +101,8 @@ const ctl = (page, l) => page.evaluate((l) => window.__fantaDebug.controllers.ge
   const h = await page.evaluate(() => ({ state: document.querySelector('.jack-hero__stage').dataset.state }));
   ok(h.state === 'ready', `hero 3D independe dos MP4: ${JSON.stringify(h)}`);
   await scrollToY(page, await sectionY(page, 'sabores', 2.4 / 6)); await sleep(2500);
-  const f = await page.evaluate(() => { const c = document.querySelector('.showcase__layer.is-current'); const img = c.querySelector('img'); return { flavor: document.querySelector('.showcase__stage').dataset.flavor, load: c.dataset.load, poster: img.complete && img.naturalWidth > 0, status: document.querySelector('.spin-controls__status').textContent }; });
-  ok(f.load === 'error' && f.poster && f.status.includes('indisponível'), `falha nos sabores: ${JSON.stringify(f)}`);
+  const f = await page.evaluate(() => { const c = document.querySelector('.showcase__layer.is-current'); const img = c.querySelector('img'); return { flavor: document.querySelector('.showcase__stage').dataset.flavor, load: c.dataset.load, poster: img.complete && img.naturalWidth > 0, controls: document.querySelector('.spin-controls').dataset.load }; });
+  ok(f.load === 'error' && f.poster && f.controls === 'error', `falha nos sabores: ${JSON.stringify(f)}`);
   await page.click('.flavor-picker__item[href="#sabor-caju"]', { force: true }); await sleep(1200);
   const c = await page.evaluate(() => ({ flavor: document.querySelector('.showcase__stage').dataset.flavor, name: document.querySelector('.showcase__name').textContent }));
   ok(c.flavor === 'caju', `navegação continua com vídeos falhando: ${JSON.stringify(c)}`);

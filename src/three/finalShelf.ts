@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { FLAVOR_GLOW, FLAVOR_IDS, addMirrors, damp, radialTexture, setLabel, smooth } from './common';
+import { FLAVOR_GLOW, FLAVOR_IDS, addMirrors, animatedPose, damp, radialTexture, setLabel, smooth } from './common';
 
 /**
  * Vitrine final: as seis latas gigantes expostas num chão espelhado, com uma poça de luz na cor de cada sabor, e
@@ -283,8 +283,8 @@ export async function createFinalShelf(canvas: HTMLCanvasElement, opts: Options)
   walk.setEffectiveWeight(0);
   const walkInfo = clipsInfo.clips.carry_walk;
   const cycleSpeed = (walkInfo?.stride ?? 0.24) / (walkInfo?.duration ?? 0.8); // m/s com timeScale 1
-  const headRest = bones.head.quaternion.clone();
-  const neckRest = bones.neck.quaternion.clone();
+  // olhar por cima da animação: o osso volta ao último valor animado, não ao repouso (ver animatedPose)
+  const lookPose = animatedPose([bones.head, bones.neck]);
 
   // ---------------------------------------------------------------- estado
   let width = 0;
@@ -420,9 +420,9 @@ export async function createFinalShelf(canvas: HTMLCanvasElement, opts: Options)
 
     idle.setEffectiveWeight(1 - wWalk);
     walk.setEffectiveWeight(wWalk);
-    bones.head.quaternion.copy(headRest);
-    bones.neck.quaternion.copy(neckRest);
+    lookPose.restore();
     mixer.update(opts.reduced ? 0 : dt);
+    lookPose.capture();
 
     // olhar segue o cursor (aditivo), menos quando anda de lado
     lookX = damp(lookX, pointerX, 4, dt);

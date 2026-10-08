@@ -1,23 +1,31 @@
 /**
- * Textos e link da seção da promoção Fanta × Cinemark.
- * PROVISÓRIO: a imagem com as informações da promoção (image1) e a URL da página de destino ainda não
- * chegaram. Troque os campos abaixo quando chegarem; o componente só lê este arquivo.
+ * Textos e link da seção da promoção Fanta × Cinemark. Os textos são os da página da campanha que veio como
+ * referência (só o texto; o visual da seção é o do site). O componente só lê este arquivo.
+ * PROVISÓRIO: a URL da página de cadastro ainda não chegou; até lá o botão aponta para o site do Cinemark.
  */
 export interface CinemaPromoCopy {
+  /** Etiqueta no canto de cima enquanto a cena passa. */
+  tag: string;
   kicker: string;
   title: [string, string];
   lead: string;
-  /** Itens curtos (mecânica, prêmio, prazo). Vazio = a lista não aparece. */
-  details: string[];
   cta: { label: string; href: string };
-  note: string;
+  /** Detalhe da oferta, abaixo do botão. */
+  offer: { label: string; title: string; text: string };
+  /** Textos impressos nos dois ingressos (só visuais; o detalhe acessível é o da oferta). */
+  ticket: { brand: string; discount: string; note: string; stub: string };
 }
 
 export const CINEMA_PROMO: CinemaPromoCopy = {
-  kicker: 'Fanta × Cinemark · Halloween 2026',
-  title: ['A pipoca é de', 'quem pega primeiro.'],
-  lead: 'Uma Fanta Halloween e o balde de pipoca da sessão: a dupla que até o Pânico queria.',
-  details: [],
-  cta: { label: 'Ver a promoção no Cinemark', href: 'https://www.cinemark.com.br/' },
-  note: 'Mecânica, prazos e regulamento na página da promoção.',
+  tag: 'Fanta + Cinemark',
+  kicker: 'Fanta Halloween',
+  title: ['Fanta leva você', 'ao cinema'],
+  lead: 'Registre-se para ganhar 50% off em dois ingressos no Cinemark.',
+  cta: { label: 'Registre-se', href: 'https://www.cinemark.com.br/' },
+  offer: {
+    label: 'Fanta + Cinemark',
+    title: '50% off em dois ingressos para o cinema',
+    text: 'Escolha seu filme de terror favorito e viva a noite mais arrepiante do ano. Cadastre-se e ganhe 50% off em dois ingressos.',
+  },
+  ticket: { brand: 'Fanta × Cinemark', discount: '50% off', note: 'Sessão de terror · 2 ingressos', stub: 'Entrada' },
 };

@@ -108,13 +108,14 @@
 /* ---------------- painel da promoção ---------------- */
 
 .cinema-promo__panel {
+  --panel-w: min(44vw, 620px);
   position: absolute;
   z-index: 3;
   right: var(--gutter);
   top: 50%;
   display: grid;
   justify-items: start;
-  width: min(44vw, 560px);
+  width: var(--panel-w);
   opacity: var(--panel);
   transform: translate3d(calc((1 - var(--panel)) * 40px), -50%, 0);
   pointer-events: none;
@@ -135,7 +136,8 @@
 .cinema-promo__title {
   display: grid;
   margin-top: clamp(10px, 1.6vh, 18px);
-  font-size: clamp(36px, min(4.6vw, 8.4svh), 88px);
+  /* a linha mais longa ("Fanta leva você", ≈9,1 em) cabe inteira na largura do painel: duas linhas, sem órfã */
+  font-size: min(clamp(36px, min(4.6vw, 8.4svh), 88px), calc(var(--panel-w) / 9.4));
   font-weight: 900;
   font-stretch: 92%;
   text-transform: uppercase;
@@ -157,34 +159,9 @@
   color: var(--ink-2);
 }
 
-.cinema-promo__details {
-  display: grid;
-  gap: 8px;
-  margin: clamp(14px, 2vh, 20px) 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: clamp(14px, 1.05vw, 16px);
-  color: var(--ink);
-}
-
-.cinema-promo__details li {
-  display: flex;
-  gap: 10px;
-}
-
-.cinema-promo__details li::before {
-  content: '';
-  flex: none;
-  width: 6px;
-  height: 6px;
-  margin-top: 0.55em;
-  border-radius: 50%;
-  background: #b48cff;
-}
-
 .cinema-promo__cta {
   height: clamp(50px, 5.6vh, 58px);
-  margin-top: clamp(20px, 3.2vh, 34px);
+  margin-top: clamp(14px, 2.2vh, 24px);
   padding: 0 28px;
   border-radius: 6px;
   background: var(--cta-orange, #f56301);
@@ -207,9 +184,159 @@
   transform: translate(2px, -2px);
 }
 
-.cinema-promo__note {
-  margin-top: 14px;
-  font-size: 13px;
+/* ---------------- os dois ingressos ---------------- */
+
+.cinema-promo__offer {
+  width: 100%;
+  max-width: 34em;
+  margin-top: clamp(18px, 3vh, 30px);
+}
+
+.cinema-promo__tickets {
+  --tk-h: clamp(84px, 12.5svh, 118px);
+  --stub-w: clamp(76px, 20%, 104px);
+  position: relative;
+  width: calc(100% - 22px);
+  height: calc(var(--tk-h) + 32px);
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.55));
+}
+
+.cinema-promo__ticket {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  grid-template-columns: 1fr var(--stub-w);
+  width: 100%;
+  height: var(--tk-h);
+  border-radius: 12px;
+  color: #fff;
+  overflow: hidden;
+  /* meia-lua nos dois lados da picote */
+  -webkit-mask:
+    radial-gradient(circle 9px at calc(100% - var(--stub-w)) 0, #0000 98%, #000),
+    radial-gradient(circle 9px at calc(100% - var(--stub-w)) 100%, #0000 98%, #000);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle 9px at calc(100% - var(--stub-w)) 0, #0000 98%, #000),
+    radial-gradient(circle 9px at calc(100% - var(--stub-w)) 100%, #0000 98%, #000);
+  mask-composite: intersect;
+  transition: transform 0.6s var(--ease-out);
+}
+
+.cinema-promo__ticket--front {
+  z-index: 2;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 255, 255, 0.22), transparent 55%),
+    linear-gradient(115deg, #8453f0 0%, #5a2cc4 55%, #3b1a8a 100%);
+  transform: translate3d(22px, 32px, 0) rotate(1.4deg);
+}
+
+.cinema-promo__ticket--back .cinema-promo__ticket-discount,
+.cinema-promo__ticket--back .cinema-promo__ticket-note,
+.cinema-promo__ticket--back .cinema-promo__ticket-no,
+.cinema-promo__ticket--back .cinema-promo__ticket-bars {
+  visibility: hidden;
+}
+
+.cinema-promo__ticket--back {
+  z-index: 1;
+  background: linear-gradient(115deg, #3a1d77 0%, #26124f 60%, #190b36 100%);
+  transform: rotate(-2.6deg);
+  transform-origin: 0 100%;
+}
+
+.cinema-promo__tickets:hover .cinema-promo__ticket--front {
+  transform: translate3d(30px, 36px, 0) rotate(2.2deg);
+}
+
+.cinema-promo__tickets:hover .cinema-promo__ticket--back {
+  transform: translate3d(-4px, -4px, 0) rotate(-4.2deg);
+}
+
+.cinema-promo__ticket-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  padding: clamp(10px, 1.6svh, 16px) clamp(14px, 1.6vw, 20px);
+}
+
+.cinema-promo__ticket-brand,
+.cinema-promo__ticket-note,
+.cinema-promo__ticket-no {
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 0.78vw, 11px);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cinema-promo__ticket-brand {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.cinema-promo__ticket-discount {
+  font-size: clamp(30px, 5.2svh, 52px);
+  font-weight: 900;
+  font-stretch: 92%;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 18px rgba(20, 5, 60, 0.45);
+}
+
+.cinema-promo__ticket-note {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.cinema-promo__ticket-stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(10px, 1.6svh, 14px) 8px clamp(8px, 1.2svh, 12px);
+  background: var(--cta-orange, #f56301);
+  color: #1c0b00;
+  border-left: 2px dashed rgba(28, 11, 0, 0.45);
+}
+
+.cinema-promo__ticket--back .cinema-promo__ticket-stub {
+  background: #c24c00;
+}
+
+.cinema-promo__ticket-admit {
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 0.78vw, 11px);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cinema-promo__ticket-no {
+  font-weight: 700;
+  font-size: clamp(12px, 1.1vw, 15px);
+}
+
+.cinema-promo__ticket-bars {
+  width: 100%;
+  height: clamp(16px, 2.8svh, 28px);
+  background: repeating-linear-gradient(
+    90deg,
+    #1c0b00 0 2px,
+    transparent 2px 4px,
+    #1c0b00 4px 5px,
+    transparent 5px 8px,
+    #1c0b00 8px 11px,
+    transparent 11px 13px
+  );
+  opacity: 0.85;
+}
+
+.cinema-promo__offer-text {
+  max-width: 32em;
+  margin-top: clamp(10px, 1.6vh, 14px);
+  font-size: clamp(13px, 0.95vw, 15px);
+  line-height: 1.5;
   color: var(--ink-3);
 }
 
@@ -244,99 +371,63 @@
   .cinema-promo__cta {
     width: 100%;
   }
+
+  .cinema-promo__tickets {
+    --tk-h: clamp(72px, 10svh, 92px);
+  }
+
+  .cinema-promo__offer-text {
+    display: none;
+  }
+}
+
+/* celular deitado: o palco tem no mínimo 600 px, mas só a altura da tela aparece; painel compacto, centrado nela */
+@media (max-height: 560px) and (min-aspect-ratio: 23/20) {
+  .cinema-promo__panel {
+    top: calc(var(--header-h) + (100svh - var(--header-h)) / 2);
+  }
+
+  .cinema-promo__title {
+    margin-top: 6px;
+    font-size: min(clamp(24px, 8.4svh, 36px), calc(var(--panel-w) / 9.4));
+  }
+
+  .cinema-promo__lead {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .cinema-promo__cta {
+    height: 40px;
+    margin-top: 12px;
+    padding: 0 20px;
+    font-size: 14px;
+  }
+
+  .cinema-promo__offer {
+    margin-top: 10px;
+  }
+
+  .cinema-promo__tickets {
+    --tk-h: 58px;
+  }
+
+  .cinema-promo__ticket-discount {
+    font-size: 24px;
+  }
+
+  .cinema-promo__offer-text {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cinema-promo__tag-dot {
     animation: none;
   }
-}
 
-/* ---------------- notebook: a cena começa numa tela de notebook e amplia até a tela cheia ---------------- */
-
-/* luz da tela no ambiente escuro, só enquanto é notebook */
-.cinema-promo__glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(42% 34% at 50% 46%, rgba(120, 138, 255, 0.14), transparent 72%),
-    radial-gradient(30% 8% at 50% 80%, rgba(150, 110, 255, 0.08), transparent 70%);
-  opacity: calc(1 - var(--zoom, 1));
-}
-
-.cinema-promo__stage::before {
-  opacity: var(--zoom, 1);
-}
-
-/* aro da tela: só a borda (o centro é vazado e deixa ver o canvas recortado embaixo) */
-.cinema-promo__lid {
-  position: absolute;
-  z-index: 2;
-  left: 0;
-  top: 0;
-  border: var(--bezel, 12px) solid #0c0c0f;
-  pointer-events: none;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.13),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.9),
-    0 40px 90px rgba(0, 0, 0, 0.65);
-  transform-origin: 0 0;
-}
-
-/* câmera no meio do aro de cima */
-.cinema-promo__lid::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: calc(var(--bezel, 12px) * -0.5);
-  width: calc(var(--bezel, 12px) * 0.36);
-  height: calc(var(--bezel, 12px) * 0.36);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #3b3f55, #0a0a0d 70%);
-  transform: translate(-50%, -50%);
-}
-
-.cinema-promo__base {
-  position: absolute;
-  z-index: 2;
-  left: 0;
-  top: 0;
-  border-radius: 2px 2px 18px 18px / 2px 2px 100% 100%;
-  background: linear-gradient(to bottom, #4a4a52 0%, #2a2a30 22%, #19191d 70%, #0d0d10 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  pointer-events: none;
-  transform-origin: 0 0;
-}
-
-/* entalhe para abrir a tampa */
-.cinema-promo__base::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  width: 13%;
-  height: 38%;
-  border-radius: 0 0 10px 10px;
-  background: linear-gradient(to bottom, #101013, #1d1d22);
-  transform: translateX(-50%);
-}
-
-/* sombra no "chão" */
-.cinema-promo__base::after {
-  content: '';
-  position: absolute;
-  left: 4%;
-  right: 4%;
-  top: 70%;
-  height: 120%;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.75), transparent);
-  z-index: -1;
-}
-
-.cinema-promo__stage[data-screen='full'] .cinema-promo__lid,
-.cinema-promo__stage[data-screen='full'] .cinema-promo__base,
-.cinema-promo__stage[data-screen='full'] .cinema-promo__glow {
-  display: none;
+  .cinema-promo__ticket {
+    transition: none;
+  }
 }
