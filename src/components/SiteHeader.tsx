@@ -5,6 +5,7 @@ const LINKS = [
   { id: 'colecao', label: 'Coleção' },
   { id: 'sabores', label: 'Sabores' },
   { id: 'vitrine', label: 'Vitrine' },
+  { id: 'cinema', label: 'Cinema' },
 ];
 
 interface Props {

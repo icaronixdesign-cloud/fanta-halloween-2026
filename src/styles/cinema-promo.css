@@ -1,0 +1,253 @@
+/* ═══════════════════════════ PROMOÇÃO FANTA × CINEMARK ═══════════════════════════ */
+
+/* O palco fica preso enquanto o scroll percorre a cena (src/three/cinemaPromo.ts); no fim o painel da promoção entra
+   à direita (paisagem) ou embaixo (retrato), onde a câmera deixou espaço. */
+.cinema-promo {
+  position: relative;
+  height: 560svh;
+  background: #000;
+}
+
+.cinema-promo[data-reduced='true'] {
+  height: auto;
+}
+
+.cinema-promo__stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  min-height: 600px;
+  overflow: hidden;
+  isolation: isolate;
+  --panel: 0;
+  --hint: 1;
+}
+
+.cinema-promo[data-reduced='true'] .cinema-promo__stage {
+  position: relative;
+  --panel: 1;
+  --hint: 0;
+}
+
+/* começa no mesmo preto em que a vitrine termina */
+.cinema-promo__stage::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 22%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, #000, transparent);
+}
+
+.cinema-promo__canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.2s var(--ease-out);
+}
+
+.cinema-promo__stage[data-state='ready'] .cinema-promo__canvas {
+  opacity: 1;
+}
+
+.cinema-promo__canvas-el {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------- etiqueta da seção e dica de scroll ---------------- */
+
+.cinema-promo__tag {
+  position: absolute;
+  z-index: 3;
+  left: var(--gutter);
+  top: calc(var(--header-h) + 18px);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  opacity: calc(1 - var(--panel));
+}
+
+.cinema-promo__tag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b48cff;
+  box-shadow: 0 0 12px #9b6bff;
+  animation: cinema-rec 1.6s ease-in-out infinite;
+}
+
+@keyframes cinema-rec {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.cinema-promo__hint {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  opacity: var(--hint);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* ---------------- painel da promoção ---------------- */
+
+.cinema-promo__panel {
+  position: absolute;
+  z-index: 3;
+  right: var(--gutter);
+  top: 50%;
+  display: grid;
+  justify-items: start;
+  width: min(44vw, 560px);
+  opacity: var(--panel);
+  transform: translate3d(calc((1 - var(--panel)) * 40px), -50%, 0);
+  pointer-events: none;
+}
+
+.cinema-promo__stage[data-panel='on'] .cinema-promo__panel {
+  pointer-events: auto;
+}
+
+.cinema-promo__kicker {
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 0.95vw, 14px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c9adff;
+}
+
+.cinema-promo__title {
+  display: grid;
+  margin-top: clamp(10px, 1.6vh, 18px);
+  font-size: clamp(36px, min(4.6vw, 8.4svh), 88px);
+  font-weight: 900;
+  font-stretch: 92%;
+  text-transform: uppercase;
+  line-height: 0.98;
+  letter-spacing: -0.008em;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);
+  outline: none;
+}
+
+.cinema-promo__line:last-child {
+  color: #c9adff;
+}
+
+.cinema-promo__lead {
+  max-width: 34em;
+  margin-top: clamp(14px, 2.2vh, 22px);
+  font-size: clamp(15px, 1.15vw, 18px);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.cinema-promo__details {
+  display: grid;
+  gap: 8px;
+  margin: clamp(14px, 2vh, 20px) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: clamp(14px, 1.05vw, 16px);
+  color: var(--ink);
+}
+
+.cinema-promo__details li {
+  display: flex;
+  gap: 10px;
+}
+
+.cinema-promo__details li::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 0.55em;
+  border-radius: 50%;
+  background: #b48cff;
+}
+
+.cinema-promo__cta {
+  height: clamp(50px, 5.6vh, 58px);
+  margin-top: clamp(20px, 3.2vh, 34px);
+  padding: 0 28px;
+  border-radius: 6px;
+  background: var(--cta-orange, #f56301);
+  color: #160900;
+  box-shadow: 0 10px 40px rgba(245, 99, 1, 0.28);
+}
+
+.cinema-promo__cta svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.25s var(--ease-out);
+}
+
+.cinema-promo__cta:hover {
+  background: #ff7a1f;
+  transform: translateY(-2px);
+}
+
+.cinema-promo__cta:hover svg {
+  transform: translate(2px, -2px);
+}
+
+.cinema-promo__note {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* retrato: o vampiro termina na metade de cima; o painel ocupa a de baixo, sobre um degradê */
+@media (max-aspect-ratio: 23/20) {
+  .cinema-promo__panel {
+    left: var(--gutter);
+    right: var(--gutter);
+    top: auto;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    width: auto;
+    transform: translate3d(0, calc((1 - var(--panel)) * 32px), 0);
+  }
+
+  .cinema-promo__panel::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: -40% calc(-1 * var(--gutter)) calc(-24px - env(safe-area-inset-bottom));
+    background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.82) 38%, #000);
+    pointer-events: none;
+  }
+
+  .cinema-promo__title {
+    font-size: clamp(32px, 9vw, 56px);
+  }
+
+  .cinema-promo__lead {
+    font-size: 15px;
+  }
+
+  .cinema-promo__cta {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinema-promo__tag-dot {
+    animation: none;
+  }
+}
