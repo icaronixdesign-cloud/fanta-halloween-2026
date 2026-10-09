@@ -65,6 +65,10 @@ export interface Flavor extends MediaItem {
   posterBack: string;
   /** O mesmo vídeo recortado no centro (faixa `VIDEO_CROP` do quadro, resolução cheia), para telas em pé. */
   videoCrop: string;
+  /** 1280×720 (all-intra): 2,25× menos pixels para decodificar por quadro. Telas menores e o nível leve. */
+  video720: string;
+  /** Recorte central em 720 linhas (598×720, faixa `VIDEO_CROP_720`). */
+  videoCrop720: string;
 }
 
 /**
@@ -73,6 +77,10 @@ export interface Flavor extends MediaItem {
  * lógico continua 16:9 (área segura, máscaras e capas inalteradas): o vídeo recortado só é posicionado dentro dele.
  */
 export const VIDEO_CROP = { x0: 504 / 1920, x1: 1400 / 1920 };
+/** Recorte dos vídeos `-720-m`: 897 px do quadro cheio a partir de x = 504, reduzidos a 598×720. */
+export const VIDEO_CROP_720 = { x0: 504 / 1920, x1: 1401 / 1920 };
+/** Abaixo desta altura do quadro na tela (px físicos), o 720p já entrega todo o detalhe visível. */
+export const HD_MIN_DEVICE_HEIGHT = 800;
 
 /** Prefixa caminhos públicos com a base do Vite, para não depender de caminho absoluto. */
 export function withBase(path: string): string {
@@ -168,6 +176,8 @@ export const FLAVORS: Flavor[] = kitItems
       thumb: withBase(`/media/fanta/derived/fanta-${item.id}-thumb-v2.webp`),
       posterBack: withBase(`/media/fanta/derived/fanta-${item.id}-quadro-090-v2.jpg`),
       videoCrop: withBase(item.video.replace(/\.mp4$/, '-m.mp4')),
+      video720: withBase(item.video.replace(/\.mp4$/, '-720.mp4')),
+      videoCrop720: withBase(item.video.replace(/\.mp4$/, '-720-m.mp4')),
     };
   });
 

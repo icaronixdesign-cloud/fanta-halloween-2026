@@ -273,6 +273,10 @@ export class ScrubVideoController {
     return this.mode;
   }
 
+  getSource(): string | null {
+    return this.src;
+  }
+
   getLoadState(): LoadState {
     return this.loadState;
   }

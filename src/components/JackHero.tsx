@@ -229,7 +229,7 @@ export function JackHero({ reducedMotion, finePointer }: Props) {
   );
 
   return (
-    <section id="colecao" ref={sectionRef} className="jack-hero" aria-labelledby="hero-title" data-reduced={reducedMotion}>
+    <section id="colecao" ref={sectionRef} className="jack-hero" aria-labelledby="hero-title" data-reduced={reducedMotion} data-near={near}>
       <div ref={stageRef} className="jack-hero__stage" data-state={state} data-phase="intro">
         <div
           ref={mountRef}

@@ -357,6 +357,11 @@
   animation: jack-hint 1.8s ease-in-out infinite;
 }
 
+/* longe do hero a linha da dica para de animar (seguiria recalculando estilo durante a rolagem dos sabores) */
+.jack-hero[data-near='false'] .jack-hero__hint-line::after {
+  animation-play-state: paused;
+}
+
 @keyframes jack-hint {
   from {
     transform: translateY(-100%);

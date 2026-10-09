@@ -17,6 +17,8 @@ import type { Framing } from '../media/framing';
 export interface FlavorWorldHandle {
   /** Capítulo contínuo e velocidade (capítulos por segundo). */
   setPose(cf: number, velocity: number): void;
+  /** Parallax do mouse (-1…1, já suavizado): cada lugar se desloca conforme a profundidade dele. */
+  setParallax(x: number, y: number): void;
 }
 
 interface Props {
@@ -25,6 +27,8 @@ interface Props {
   wide: boolean;
   displayed: number;
   reducedMotion: boolean;
+  /** Nível leve: sem desfoque nem flutuação, só os lugares de destaque, gás a 30 quadros/s. */
+  lite: boolean;
   active: boolean;
   stageRef: RefObject<HTMLElement | null>;
   introRef: RefObject<HTMLElement | null>;
@@ -55,6 +59,8 @@ interface Box {
 
 /** Atraso de cada lugar na entrada/saída (capítulos): o herói chega primeiro. */
 const STAGGER: Record<WorldSlot, number> = { hero: 0, lower: 0.025, upper: 0.05, floor: 0.07, drift: 0.09 };
+/** Lugares que ficam no nível leve: a fruta em destaque e os dois planos que dão profundidade. */
+const LITE_SLOTS: ReadonlySet<WorldSlot> = new Set(['hero', 'lower', 'upper']);
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInQuad = (t: number) => t * t;
@@ -140,6 +146,7 @@ export function FlavorWorld({
   wide,
   displayed,
   reducedMotion,
+  lite,
   active,
   stageRef,
   introRef,
@@ -170,7 +177,7 @@ export function FlavorWorld({
   const slotsRef = useRef<Slots>({});
   const canRef = useRef<Box>({ left: 0, top: 0, right: 0, bottom: 0 });
   const sizeRef = useRef({ W: 0, H: 0 });
-  const pose = useRef({ cf: reducedMotion ? displayed + 0.5 : 0, velocity: 0 });
+  const pose = useRef({ cf: reducedMotion ? displayed + 0.5 : 0, velocity: 0, mx: 0, my: 0 });
   const [wanted, setWanted] = useState<number[]>([]);
 
   // Imagens: só do sabor exibido e dos vizinhos; uma vez pedidas, ficam.
@@ -180,7 +187,7 @@ export function FlavorWorld({
 
   /** Escreve transform/opacidade/desfoque de cada elemento para o capítulo atual. */
   const paint = useCallback(() => {
-    const { cf } = pose.current;
+    const { cf, mx, my } = pose.current;
     const { W, H } = sizeRef.current;
     if (!W || !H) return;
     const can = canRef.current;
@@ -200,7 +207,7 @@ export function FlavorWorld({
       const depth = SLOT_DEPTH[sprite.slot];
       let opacity = depth.opacity * clamp01(arrive / 0.3) * (1 - clamp01((depart - 0.3) / 0.65));
       // Movimento reduzido: só o sabor escolhido, parado no lugar.
-      if (!slot || (reducedMotion && Math.abs(delta) > 0.5)) opacity = 0;
+      if (!slot || (reducedMotion && Math.abs(delta) > 0.5) || (lite && !LITE_SLOTS.has(sprite.slot))) opacity = 0;
       if (opacity < 0.004) {
         if (sprite.lastOpacity !== '0') {
           element.style.opacity = '0';
@@ -233,10 +240,14 @@ export function FlavorWorld({
         rot += depart * 26 * spin;
         blur += depart * (5 + 10 * depth.depth);
       }
+      // profundidade: quanto mais perto, mais o mouse o desloca (a lata anda -8px)
+      x -= mx * depth.parallax;
+      y -= my * depth.parallax * 0.6;
       const transform = `translate3d(${(x - w / 2).toFixed(1)}px, ${(y - h / 2).toFixed(1)}px, 0) rotate(${rot.toFixed(2)}deg) scale(${scale.toFixed(4)})`;
       const opacityText = opacity.toFixed(3);
       const blurPx = Math.round(blur * unit);
-      const filter = blurPx > 0 ? `blur(${blurPx}px)` : 'none';
+      // leve: sem desfoque (cada raio novo é mais um passe de GPU sobre a imagem inteira)
+      const filter = blurPx > 0 && !lite ? `blur(${blurPx}px)` : 'none';
       if (transform !== sprite.lastTransform) {
         element.style.transform = transform;
         sprite.lastTransform = transform;
@@ -260,7 +271,7 @@ export function FlavorWorld({
       const value = groupVisible[index] ? '' : 'none';
       if (group.style.display !== value) group.style.display = value;
     });
-  }, [reducedMotion]);
+  }, [reducedMotion, lite]);
 
   // Lugares: dependem do enquadramento da lata e dos blocos de texto.
   const relayout = useCallback(() => {
@@ -309,9 +320,19 @@ export function FlavorWorld({
         pose.current.velocity = velocity;
         paint();
       },
+      setParallax(x: number, y: number) {
+        pose.current.mx = x;
+        pose.current.my = y;
+        paint();
+      },
     }),
     [paint],
   );
+
+  // troca de nível no meio da visita: reescreve tudo (lugares que somem, desfoque)
+  useEffect(() => {
+    paint();
+  }, [paint]);
 
   // Movimento reduzido: sem rolagem presa, os elementos seguem o sabor escolhido.
   useEffect(() => {
@@ -327,7 +348,7 @@ export function FlavorWorld({
     if (!canvas || !stage || reducedMotion || !active) return;
     const context = canvas.getContext('2d');
     if (!context) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = lite ? 1 : Math.min(2, window.devicePixelRatio || 1);
     let W = 0;
     let H = 0;
     interface Bubble {
@@ -340,6 +361,27 @@ export function FlavorWorld({
       alpha: number;
     }
     let bubbles: Bubble[] = [];
+    // Cada bolha (anel + brilho) é desenhada uma vez por tamanho num canvas pequeno; por quadro só há drawImage com
+    // alfa. Desenhar dois arcos e montar duas cores rgba() por bolha a cada quadro pesava no thread principal.
+    const GLYPH_SIZES = 8;
+    const glyphs = Array.from({ length: GLYPH_SIZES }, (_, index) => {
+      const r = 0.8 + (3.6 * index) / (GLYPH_SIZES - 1);
+      const half = Math.ceil(r + 1.5);
+      const glyph = document.createElement('canvas');
+      glyph.width = glyph.height = Math.ceil(half * 2 * dpr);
+      const g = glyph.getContext('2d')!;
+      g.scale(dpr, dpr);
+      g.beginPath();
+      g.arc(half, half, r, 0, Math.PI * 2);
+      g.strokeStyle = 'rgba(255, 252, 245, 0.55)';
+      g.lineWidth = 0.8;
+      g.stroke();
+      g.beginPath();
+      g.arc(half - r * 0.35, half - r * 0.35, Math.max(0.5, r * 0.3), 0, Math.PI * 2);
+      g.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      g.fill();
+      return { canvas: glyph, half };
+    });
     const spawn = (anywhere: boolean): Bubble => ({
       x: Math.random() * W,
       y: anywhere ? Math.random() * H : H + 10 + Math.random() * 40,
@@ -355,7 +397,7 @@ export function FlavorWorld({
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const count = Math.round(clamp((W * H) / 20000, 18, 80));
+      const count = Math.round(clamp((W * H) / (lite ? 40000 : 20000), lite ? 12 : 18, lite ? 40 : 80));
       bubbles = Array.from({ length: count }, () => spawn(true));
     };
     resize();
@@ -365,8 +407,12 @@ export function FlavorWorld({
     let raf = 0;
     let last = 0;
     let boost = 0;
+    let odd = false;
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
+      // leve: 30 quadros/s bastam para bolhas pequenas subindo
+      odd = !odd;
+      if (lite && odd) return;
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
       last = now;
       boost += (Math.min(6, Math.abs(pose.current.velocity) * 3) - boost) * Math.min(1, dt * 6);
@@ -380,16 +426,11 @@ export function FlavorWorld({
         const fade = clamp01(bubble.y / (H * 0.25)) * clamp01((H - bubble.y + 40) / 120);
         const alpha = bubble.alpha * fade;
         if (alpha < 0.02) continue;
-        context.beginPath();
-        context.arc(x, bubble.y, bubble.r, 0, Math.PI * 2);
-        context.strokeStyle = `rgba(255, 252, 245, ${(alpha * 0.55).toFixed(3)})`;
-        context.lineWidth = 0.8;
-        context.stroke();
-        context.beginPath();
-        context.arc(x - bubble.r * 0.35, bubble.y - bubble.r * 0.35, Math.max(0.5, bubble.r * 0.3), 0, Math.PI * 2);
-        context.fillStyle = `rgba(255, 255, 255, ${(alpha * 0.8).toFixed(3)})`;
-        context.fill();
+        const glyph = glyphs[Math.min(GLYPH_SIZES - 1, Math.round(((bubble.r - 0.8) / 3.6) * (GLYPH_SIZES - 1)))];
+        context.globalAlpha = alpha;
+        context.drawImage(glyph.canvas, x - glyph.half, bubble.y - glyph.half, glyph.half * 2, glyph.half * 2);
       }
+      context.globalAlpha = 1;
     };
     raf = requestAnimationFrame(tick);
     return () => {
@@ -397,10 +438,10 @@ export function FlavorWorld({
       observer.disconnect();
       context.clearRect(0, 0, W, H);
     };
-  }, [active, reducedMotion, stageRef]);
+  }, [active, reducedMotion, lite, stageRef]);
 
   return (
-    <div ref={rootRef} className="world" aria-hidden="true">
+    <div ref={rootRef} className={`world${lite ? ' is-lite' : ''}`} aria-hidden="true">
       <canvas ref={canvasRef} className="world__fizz" />
       {FLAVORS.map((flavor, f) => (
         <div
@@ -414,7 +455,6 @@ export function FlavorWorld({
         >
           {(FLAVOR_WORLD[flavor.id] ?? []).map((sprite, index) => {
             const runtimeIndex = SPRITES.findIndex((entry) => entry.flavor === f && entry.index === index);
-            const depth = SLOT_DEPTH[sprite.slot];
             return (
               <div
                 key={`${sprite.slot}-${index}`}
@@ -422,7 +462,7 @@ export function FlavorWorld({
                   runtime.current[runtimeIndex].element = element;
                 }}
                 className={`world__sprite is-${sprite.slot}`}
-                style={{ '--px': depth.parallax, opacity: 0 } as CSSProperties}
+                style={{ opacity: 0 }}
               >
                 <div
                   className="world__float"

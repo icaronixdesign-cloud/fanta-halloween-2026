@@ -88,15 +88,33 @@ export function useElementSize(ref: RefObject<HTMLElement | null>): Size {
 }
 
 /**
- * Deslocamento discreto da composição pelo mouse. Escreve --mx/--my (-1…1, suavizados) no
- * elemento; o CSS converte em translate, sem escala nem distorção da mídia.
+ * Deslocamento discreto da composição pelo mouse. Escreve --mx/--my (-1…1, suavizados) só nos elementos `targets`, que
+ * os convertem em translate (sem escala nem distorção da mídia); `onStep` recebe os mesmos valores para quem posiciona
+ * por JS. As duas variáveis são registradas sem herança (sections.css): escritas num ancestral, cada movimento do mouse
+ * recalcularia o estilo de todos os filhos dele.
  */
-export function usePointerParallax(ref: RefObject<HTMLElement | null>, enabled: boolean): void {
+export function usePointerParallax(
+  targets: ReadonlyArray<RefObject<HTMLElement | null>>,
+  enabled: boolean,
+  onStep?: (x: number, y: number) => void,
+): void {
+  const stepRef = useRef(onStep);
   useEffect(() => {
-    const element = ref.current;
-    if (!element || !enabled) {
-      element?.style.setProperty('--mx', '0');
-      element?.style.setProperty('--my', '0');
+    stepRef.current = onStep;
+  });
+  useEffect(() => {
+    const elements = targets.map((target) => target.current).filter((element): element is HTMLElement => !!element);
+    const write = (x: number, y: number) => {
+      const mx = x.toFixed(4);
+      const my = y.toFixed(4);
+      for (const element of elements) {
+        element.style.setProperty('--mx', mx);
+        element.style.setProperty('--my', my);
+      }
+      stepRef.current?.(x, y);
+    };
+    if (!enabled) {
+      write(0, 0);
       return;
     }
     let targetX = 0;
@@ -108,8 +126,7 @@ export function usePointerParallax(ref: RefObject<HTMLElement | null>, enabled: 
       raf = 0;
       x += (targetX - x) * 0.08;
       y += (targetY - y) * 0.08;
-      element.style.setProperty('--mx', x.toFixed(4));
-      element.style.setProperty('--my', y.toFixed(4));
+      write(x, y);
       if (Math.abs(targetX - x) > 0.001 || Math.abs(targetY - y) > 0.001) raf = requestAnimationFrame(step);
     };
     const onMove = (event: PointerEvent) => {
@@ -129,8 +146,9 @@ export function usePointerParallax(ref: RefObject<HTMLElement | null>, enabled: 
       window.removeEventListener('pointermove', onMove);
       document.documentElement.removeEventListener('pointerleave', onLeave);
       if (raf) cancelAnimationFrame(raf);
-      element.style.setProperty('--mx', '0');
-      element.style.setProperty('--my', '0');
+      write(0, 0);
     };
-  }, [ref, enabled]);
+    // os alvos são refs estáveis do componente: a lista é lida uma vez por montagem
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 }

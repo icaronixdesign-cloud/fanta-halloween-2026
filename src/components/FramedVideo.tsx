@@ -28,8 +28,10 @@ export interface FramedVideoProps {
   posterBack?: string | null;
   /** Elemento do quadro, para o palco controlar opacidade/ângulo sem re-renderizar. */
   elementRef?: (element: HTMLDivElement | null) => void;
-  /** Fonte do vídeo; `null` mantém o elemento sem download. */
+  /** Fonte do vídeo (URL ou Blob já baixado); `null` mantém o elemento sem download. */
   src: string | null;
+  /** Nome do arquivo de origem, exposto em `data-src` (com Blob, `src` vira `blob:…`). */
+  srcName?: string | null;
   /** A fonte cobre só esta faixa horizontal do quadro (fração 0–1): o vídeo é posicionado nela, o quadro segue 16:9. */
   crop?: { x0: number; x1: number } | null;
   preload: PreloadHint;
@@ -55,6 +57,7 @@ export const FramedVideo = memo(function FramedVideo(props: FramedVideoProps) {
     posterBack,
     elementRef,
     src,
+    srcName,
     crop,
     preload,
     active,
@@ -117,7 +120,21 @@ export const FramedVideo = memo(function FramedVideo(props: FramedVideoProps) {
   }, [label, media.fps, media.frameCount, media.lastFrameTimeSeconds, wrapManual]);
 
   useEffect(() => {
-    controllerRef.current?.setSource(src, preload);
+    let timer = 0;
+    const apply = () => {
+      const controller = controllerRef.current;
+      if (!controller) return;
+      const current = controller.getSource();
+      // Troca de arquivo (outra resolução) com a lata na tela: espera ela sair. Trocar agora mostraria a capa até o
+      // novo vídeo decodificar, no meio do giro.
+      if (src && current && current !== src && frameRef.current?.style.visibility === 'visible') {
+        timer = window.setTimeout(apply, 200);
+        return;
+      }
+      controller.setSource(src, preload);
+    };
+    apply();
+    return () => window.clearTimeout(timer);
   }, [src, preload]);
 
   useEffect(() => {
@@ -184,6 +201,7 @@ export const FramedVideo = memo(function FramedVideo(props: FramedVideoProps) {
         disablePictureInPicture
         tabIndex={-1}
         aria-hidden="true"
+        data-src={srcName ?? undefined}
       />
       {framing && (
         <>

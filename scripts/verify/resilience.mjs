@@ -57,7 +57,7 @@ const ctl = (page, l) => page.evaluate((l) => window.__fantaDebug.controllers.ge
   ok(st.flavor === 'uva' && st.poster.includes('uva') && mp4.length === 0, `seleção sem rolar e sem vídeo: ${JSON.stringify(st)}`);
   await page.focus('.spin-controls input'); for (let i = 0; i < 20; i++) await page.keyboard.press('ArrowRight');
   await sleep(2500); const s = await waitSettled(page, 'sabor:uva', 8000);
-  ok(mp4.includes('fanta-uva-loop.mp4') && s.presentedFrame === 20 && s.mode === 'manual', `slider carrega o vídeo sob demanda e posiciona: quadro ${s.presentedFrame}, modo ${s.mode}, mp4 ${mp4}`);
+  ok(mp4.some((name) => name.startsWith('fanta-uva-loop')) && s.presentedFrame === 20 && s.mode === 'manual', `slider carrega o vídeo sob demanda e posiciona: quadro ${s.presentedFrame}, modo ${s.mode}, mp4 ${mp4}`);
   const anim = await page.evaluate(() => getComputedStyle(document.querySelector('.jack-hero__word')).animationDuration);
   ok(parseFloat(anim) < 0.01, `animações reduzidas (duração ${anim})`);
   await page.screenshot({ path: `${OUT}reduced-sabores.png` });

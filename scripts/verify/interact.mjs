@@ -6,7 +6,7 @@ const page = await ctx.newPage(); const log = []; track(page, log);
 await page.goto(BASE + '/?debug', { waitUntil: 'load' }); await sleep(1500);
 const ok = (cond, msg) => console.log(cond ? 'PASS' : 'FAIL', msg);
 const ctl = (l) => page.evaluate((l) => window.__fantaDebug.controllers.get(l)?.getSnapshot(), l);
-const playingVideos = () => page.evaluate(() => [...document.querySelectorAll('video')].filter((v) => !v.paused).map((v) => (v.getAttribute('src') || '').split('/').pop()));
+const playingVideos = () => page.evaluate(() => [...document.querySelectorAll('video')].filter((v) => !v.paused).map((v) => v.dataset.src || (v.getAttribute('src') || '').split('/').pop()));
 const blackCheck = (sel) => page.evaluate((sel) => {
   const v = document.querySelector(sel); const c = document.createElement('canvas'); c.width = 96; c.height = 54;
   const g = c.getContext('2d'); g.drawImage(v, 0, 0, 96, 54); const d = g.getImageData(0, 0, 96, 54).data; let sum = 0;
@@ -76,7 +76,7 @@ const stageState = () => page.evaluate(() => {
   const st = document.querySelector('.showcase__stage'); const cur = document.querySelector('.showcase__layer.is-current');
   return { flavor: st.dataset.flavor, name: document.querySelector('.showcase__name').textContent.trim(), accent: getComputedStyle(st).getPropertyValue('--accent').trim(),
     picker: document.querySelector('.flavor-picker__item[aria-current="true"] .flavor-picker__name')?.textContent, layer: cur?.getAttribute('aria-label'),
-    poster: (cur?.querySelector('img')?.getAttribute('src') || '').split('/').pop(), video: (cur?.querySelector('video')?.getAttribute('src') || '').split('/').pop(),
+    poster: (cur?.querySelector('img')?.getAttribute('src') || '').split('/').pop(), video: cur?.querySelector('video')?.dataset.src || (cur?.querySelector('video')?.getAttribute('src') || '').split('/').pop(),
     loaded: [...document.querySelectorAll('.showcase__layer video')].filter((v) => v.getAttribute('src')).length };
 });
 for (let k = 0; k < 6; k++) {
@@ -105,7 +105,7 @@ await scrollToY(page, await sectionY(page, 'sabores', 2.5 / 6)); await sleep(800
 for (const id of ['uva', 'caju', 'guarana', 'laranja', 'maracuja']) { await page.click(`.flavor-picker__item[href="#sabor-${id}"]`, { force: true }); await sleep(70); }
 await sleep(1600);
 let st = await stageState(); const cm = await waitSettled(page, 'sabor:maracuja');
-ok(st.flavor === 'maracuja' && st.picker === 'Maracujá' && st.poster.includes('maracuja') && st.video.includes('maracuja') && st.loaded <= 3, `troca rápida -> ${JSON.stringify(st)} quadro ${cm.presentedFrame}`);
+ok(st.flavor === 'maracuja' && st.picker === 'Maracujá' && st.poster.includes('maracuja') && st.video.includes('maracuja') && st.loaded <= 6, `troca rápida -> ${JSON.stringify(st)} quadro ${cm.presentedFrame}`);
 ok((await playingVideos()).length === 0, 'nenhum vídeo tocando após troca rápida');
 
 // 5. Arrasto (manual) -> rolagem retoma

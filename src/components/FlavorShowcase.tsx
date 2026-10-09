@@ -1,10 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { FLAVORS, VIDEO_CROP, flavorById, type Flavor } from '../data/products';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { FLAVORS, HD_MIN_DEVICE_HEIGHT, VIDEO_CROP, VIDEO_CROP_720, flavorById, type Flavor } from '../data/products';
 import { clamp, smoothstep, wrapFrame } from '../media/frames';
 import { computeFraming, type Framing, type Insets } from '../media/framing';
 import { preloadPoster } from '../media/posterCache';
 import { registerProbe } from '../media/debug';
 import type { ControlMode, LoadState, PreloadHint, ScrubVideoController } from '../media/ScrubVideoController';
+import {
+  playableSource,
+  prioritizeVideos,
+  startVideoDownloads,
+  subscribeVideos,
+  videoState,
+  videoStoreVersion,
+} from '../media/videoStore';
 import { attachDragRotate } from '../interaction/dragRotate';
 import { SWAP_HALF, clampChapter, facingFor, frameAt, poseAt } from '../interaction/flavorTimeline';
 import {
@@ -15,6 +23,7 @@ import {
   useWideLayout,
 } from '../interaction/hooks';
 import { cutTo, glideTo, registerFlavorNavigator, type FlavorNavigateOptions } from '../interaction/navigation';
+import { createFrameMonitor, getQualityReason, useQuality } from '../interaction/quality';
 import { scrollEngine, scrollYForProgress } from '../interaction/scrollEngine';
 import type { JackAdmirer } from '../three/jackAdmirer';
 import { FlavorWorld, type FlavorWorldHandle } from './FlavorWorld';
@@ -30,14 +39,22 @@ import { FramedVideo } from './FramedVideo';
  */
 
 const COUNT = FLAVORS.length;
-const MAX_LOADED_VIDEOS = 3;
-/** Vídeo dos vizinhos só depois de uma pausa na rolagem: carregar no meio de uma troca engasga a GPU. */
-const SETTLE_MS = 350;
+/**
+ * Vídeos com fonte atribuída ao mesmo tempo. Na tela larga, todos: descarregar e recarregar no meio da rolagem
+ * congelava a lata. Em pé (celular), os mais próximos, por memória.
+ */
+const MAX_ATTACHED_WIDE = COUNT;
+const MAX_ATTACHED_STACKED = 3;
+/** Ordem de download na tela em pé: o exibido e os próximos no sentido da rolagem. */
+const QUEUE_STACKED = 4;
+/** Depois do carregamento da página e de uma folga, os vídeos começam a baixar (sem disputar banda com o hero). */
+const DOWNLOAD_DELAY_MS = 1200;
 /**
  * O capítulo segue a rolagem por uma mola criticamente amortecida (rad/s): a velocidade da lata nunca dá salto, então
- * os "cliques" da roda viram um giro contínuo, que acelera e freia sozinho (63% do caminho em ~0,17 s, sem passar).
+ * os "cliques" da roda viram um giro contínuo, que acelera e freia sozinho. Firme: com rolagem contínua fica ~2v/ω
+ * atrás (≈ 90 px), sem a sensação de peso.
  */
-const SPRING = 13;
+const SPRING = 27;
 /** Saltos maiores que isto (capítulos) não são suavizados: corte ou seleção distante. */
 const SNAP_CHAPTERS = 1.25;
 /** Deslizamento até o sabor vizinho (ms por capítulo). */
@@ -101,16 +118,22 @@ interface Props {
   finePointer: boolean;
 }
 
-/**
- * Fila LRU dos sabores com vídeo atribuído. `priority` entra na frente, em ordem; o restante
- * mantém a ordem de uso. O sabor `keep` (exibido) nunca é descartado.
- */
-function withLoaded(list: number[], priority: number[], keep: number): number[] {
-  const next = [...priority, ...list.filter((value) => !priority.includes(value))];
-  const result = next.slice(0, MAX_LOADED_VIDEOS);
-  if (!result.includes(keep)) result[result.length - 1] = keep;
-  const same = result.length === list.length && result.every((value, index) => value === list[index]);
-  return same ? list : result;
+/** Arquivo do sabor para a resolução (1080/720) e o enquadramento (quadro cheio/recorte central). */
+function urlFor(item: Flavor, hd: boolean, crop: boolean): string {
+  if (crop) return hd ? item.videoCrop : item.videoCrop720;
+  return hd ? item.video : item.video720;
+}
+
+/** Índices a partir do exibido, primeiro no sentido da rolagem: [d, d+1, d-1, d+2, d-2…] (descendo). */
+function nearestOrder(displayed: number, direction: 'down' | 'up'): number[] {
+  const step = direction === 'down' ? 1 : -1;
+  const order = [displayed];
+  for (let distance = 1; order.length < COUNT; distance++) {
+    for (const index of [displayed + step * distance, displayed - step * distance]) {
+      if (index >= 0 && index < COUNT) order.push(index);
+    }
+  }
+  return order;
 }
 
 /** Nome em linhas e letras, cada letra com seu índice para o escalonamento da animação. */
@@ -163,13 +186,16 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
   const bottomSize = useElementSize(bottomRef);
   const near = useInView(sectionRef, '120% 0px 120% 0px');
   const onStage = useInView(sectionRef, '15% 0px 15% 0px');
-  usePointerParallax(stageRef, finePointer && !reducedMotion);
+  const quality = useQuality();
+  const lite = quality === 'lite';
+  /** Nível no momento em que o Jack é criado (depois ele acompanha por setLite). */
+  const liteRef = useRef(lite);
+  // o mouse desloca só a mídia, o bloco do nome e (por JS) o mundo do sabor: nada é escrito no palco
+  usePointerParallax([mediaRef, topRef], finePointer && !reducedMotion, (x, y) => worldRef.current?.setParallax(x, y));
 
   const [displayed, setDisplayed] = useState(0);
   const [direction, setDirection] = useState<'down' | 'up'>('down');
   const [exiting, setExiting] = useState<{ flavor: Flavor; key: number } | null>(null);
-  const [settled, setSettled] = useState(0);
-  const [loaded, setLoaded] = useState<number[]>([]);
   const [mode, setMode] = useState<ControlMode>(reducedMotion ? 'manual' : 'scroll');
   const [loadState, setLoadState] = useState<LoadState>('empty');
   const [interacted, setInteracted] = useState(false);
@@ -189,6 +215,10 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
 
   // Capítulo contínuo: alvo (rolagem) e valor suavizado que move a cena.
   const chapter = useRef({ target: 0, current: 0, velocity: 0, ready: false, raf: 0, last: 0 });
+  /** Ritmo dos quadros enquanto a lata gira: passou do orçamento, a página passa ao nível leve (quality.ts). */
+  const [monitor] = useState(createFrameMonitor);
+  /** Quadro que o slider mostra, guardado durante a rolagem e escrito quando ela para (ver onFrame). */
+  const pendingSlider = useRef(-1);
 
   const flavor = FLAVORS[displayed];
 
@@ -319,6 +349,16 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
     [commitDisplayed],
   );
 
+  /** Escreve no slider o último quadro guardado durante a rolagem (valor e texto acessível). */
+  const flushSlider = useCallback(() => {
+    const frame = pendingSlider.current;
+    const slider = sliderRef.current;
+    if (frame < 0 || !slider || sliderHeld.current) return;
+    pendingSlider.current = -1;
+    slider.value = String(frame);
+    slider.setAttribute('aria-valuetext', `Quadro ${frame + 1} de ${FLAVORS[displayedRef.current].frameCount}`);
+  }, []);
+
   // Laço de suavização: segue o alvo da rolagem e para sozinho quando alcança.
   const tickRef = useRef<FrameRequestCallback>(() => {});
   useEffect(() => {
@@ -342,14 +382,17 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
       state.current = next;
       if (next !== state.target) {
         applyPose(next, state.velocity);
+        monitor.sample(now);
         state.raf = requestAnimationFrame((time) => tickRef.current(time));
       } else {
         state.velocity = 0;
         state.last = 0;
+        monitor.reset();
         applyPose(next, 0);
+        flushSlider();
       }
     };
-  }, [applyPose]);
+  }, [applyPose, monitor, flushSlider]);
 
   useEffect(() => {
     const state = chapter.current;
@@ -408,6 +451,7 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
       .then(({ createJackAdmirer }) =>
         createJackAdmirer(canvas, {
           reduced: reducedMotion,
+          lite: liteRef.current,
           onReady: () => !disposed && mount.setAttribute('data-ready', 'true'),
         }),
       )
@@ -442,13 +486,12 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
   }, [onStage]);
 
   useEffect(() => {
-    jackRef.current?.react(FLAVORS[displayed].accent);
-  }, [displayed]);
+    liteRef.current = lite;
+    jackRef.current?.setLite(lite);
+  }, [lite]);
 
-  // Sabor "assentado": ele e os dois vizinhos ganham vídeo. Passagens rápidas mostram só capas.
   useEffect(() => {
-    const timer = window.setTimeout(() => setSettled(displayed), SETTLE_MS);
-    return () => window.clearTimeout(timer);
+    jackRef.current?.react(FLAVORS[displayed].accent);
   }, [displayed]);
 
   // Capas: baixam quando a seção se aproxima e continuam disponíveis depois disso.
@@ -467,19 +510,96 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
     if (fits !== cropMode) setCropMode(fits);
   }
 
-  // Fila de vídeos derivada durante o render (sem efeito em cascata).
-  const loadInputs = `${settled}:${near ? 1 : 0}:${reducedMotion ? 1 : 0}:${interacted ? 1 : 0}`;
-  const [appliedLoadInputs, setAppliedLoadInputs] = useState('');
-  if (loadInputs !== appliedLoadInputs) {
-    setAppliedLoadInputs(loadInputs);
+  // Resolução: 1080 só quando o quadro ocupa ≥ 800 px físicos de altura e o aparelho não abriu no nível leve. Com
+  // folga para não trocar de arquivo à toa num redimensionamento pequeno. Decidido antes de qualquer vídeo baixar.
+  // O rebaixamento no meio da visita (quadros lentos) não troca a resolução: baixar e decodificar de novo outro
+  // arquivo travava a lata, e a decodificação em si não é o gargalo (mesmo pela CPU o 1080 gira liso).
+  const [liteAtStart] = useState(lite);
+  const [hdMode, setHdMode] = useState(false);
+  const [tierReady, setTierReady] = useState(false);
+  if (framing) {
+    const deviceHeight = framing.height * (window.devicePixelRatio || 1);
+    const limit = hdMode ? HD_MIN_DEVICE_HEIGHT * 0.9 : HD_MIN_DEVICE_HEIGHT;
+    const wantHd = !liteAtStart && deviceHeight >= limit;
+    if (wantHd !== hdMode) setHdMode(wantHd);
+    if (!tierReady) setTierReady(true);
+  }
+  const videoUrl = (item: Flavor) => urlFor(item, hdMode, cropMode);
+  const videoCrop = cropMode ? (hdMode ? VIDEO_CROP : VIDEO_CROP_720) : null;
+  const videoUrlRef = useRef(videoUrl);
+  useEffect(() => {
+    videoUrlRef.current = videoUrl;
+  });
+
+  // Vídeos baixados inteiros (videoStore). Um que fica pronto no meio de uma troca espera ela acabar para entrar:
+  // atribuir a fonte com duas latas na tela engasga a decodificação.
+  const subscribeStore = useCallback(
+    (notify: () => void) =>
+      subscribeVideos(() => {
+        const deliver = () => {
+          const state = chapter.current;
+          const moving = state.current !== state.target;
+          if (moving && Math.abs(poseAt(state.current, COUNT).toSwap) < 0.1) window.setTimeout(deliver, 90);
+          else notify();
+        };
+        deliver();
+      }),
+    [],
+  );
+  const storeVersion = useSyncExternalStore(subscribeStore, videoStoreVersion);
+
+  // Fila de download: o exibido e os próximos no sentido da rolagem. Com a seção por perto, o pedido é urgente
+  // (baixa mesmo antes de a fila geral começar).
+  const firstUrl = videoUrl(FLAVORS[0]);
+  useEffect(() => {
+    if (!tierReady) return;
+    const urls = (indices: number[]) => indices.map((index) => videoUrlRef.current(FLAVORS[index]));
     if (reducedMotion) {
       // Movimento reduzido: só capas até a pessoa pedir giro (slider, arrasto ou reprodução).
-      if (interacted) setLoaded((list) => withLoaded(list, [settled], settled));
-    } else if (near) {
-      const neighbours = [settled + 1, settled - 1].filter((value) => value >= 0 && value < COUNT);
-      setLoaded((list) => withLoaded(list, [settled, ...neighbours], settled));
+      if (interacted) prioritizeVideos(urls([displayed]), true);
+      return;
     }
-  }
+    const order = nearestOrder(displayed, direction);
+    prioritizeVideos(urls(wide ? order : order.slice(0, QUEUE_STACKED)), near);
+  }, [tierReady, reducedMotion, interacted, displayed, direction, wide, near, firstUrl]);
+
+  // A fila geral começa depois do carregamento da página e de uma folga: os vídeos não disputam banda com o hero.
+  useEffect(() => {
+    if (reducedMotion) return;
+    let timer = 0;
+    let idle = 0;
+    const begin = () => {
+      timer = window.setTimeout(() => {
+        if (window.requestIdleCallback) idle = window.requestIdleCallback(() => startVideoDownloads(), { timeout: 1500 });
+        else startVideoDownloads();
+      }, DOWNLOAD_DELAY_MS);
+    };
+    if (document.readyState === 'complete') begin();
+    else window.addEventListener('load', begin, { once: true });
+    return () => {
+      window.removeEventListener('load', begin);
+      window.clearTimeout(timer);
+      if (idle) window.cancelIdleCallback?.(idle);
+    };
+  }, [reducedMotion]);
+
+  // Quem recebe fonte: na tela larga todos os já baixados; em pé, os mais próximos do exibido.
+  const attachLimit = reducedMotion ? (interacted ? 1 : 0) : wide ? MAX_ATTACHED_WIDE : MAX_ATTACHED_STACKED;
+  const attached = useMemo(() => {
+    const result = new Map<number, { src: string; name: string }>();
+    if (storeVersion < 0) return result; // a versão do armazém é a dependência que refaz a lista
+    for (const index of nearestOrder(displayed, direction).slice(0, attachLimit)) {
+      const item = FLAVORS[index];
+      const preferred = urlFor(item, hdMode, cropMode);
+      // Enquanto a resolução preferida não baixou (ex.: a página acabou de passar ao nível leve), serve a outra se já
+      // estiver na memória: a lata nunca volta à capa por causa de uma troca de resolução.
+      const other = urlFor(item, !hdMode, cropMode);
+      const url = playableSource(preferred) !== null || videoState(other) !== 'ready' ? preferred : other;
+      const source = playableSource(url);
+      if (source) result.set(index, { src: source, name: url.split('/').pop() ?? '' });
+    }
+    return result;
+  }, [storeVersion, displayed, direction, attachLimit, hdMode, cropMode]);
 
   /** Intenção (hover/foco no seletor): adianta capa e vídeo do sabor. */
   const preloadIntent = useCallback(
@@ -487,7 +607,8 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
       if (reducedMotion) return;
       void preloadPoster(FLAVORS[index].poster);
       const current = displayedRef.current;
-      setLoaded((list) => (list.includes(index) ? list : withLoaded(list, [current, index], current)));
+      const rest = nearestOrder(current, 'down').filter((value) => value !== index && value !== current);
+      prioritizeVideos([current, index, ...rest].map((value) => videoUrlRef.current(FLAVORS[value])), true);
     },
     [reducedMotion],
   );
@@ -578,10 +699,17 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
           const slider = sliderRef.current;
           // Em modo manual o slider guarda a intenção da pessoa (teclado/arrasto), não o quadro
           // apresentado, que pode estar atrasado enquanto o vídeo carrega.
-          if (slider && frameMode !== 'manual' && !sliderHeld.current) {
-            slider.value = String(frame);
-            slider.setAttribute('aria-valuetext', `Quadro ${frame + 1} de ${total}`);
+          if (!slider || frameMode === 'manual' || sliderHeld.current) return;
+          // Rolando: só guarda. Escrever valor e texto acessível a cada quadro invalidava o layout e a árvore de
+          // acessibilidade da página inteira; o slider assenta quando a rolagem para.
+          const state = chapter.current;
+          if (frameMode === 'scroll' && state.current !== state.target) {
+            pendingSlider.current = frame;
+            return;
           }
+          pendingSlider.current = -1;
+          slider.value = String(frame);
+          slider.setAttribute('aria-valuetext', `Quadro ${frame + 1} de ${total}`);
         },
         onModeChange: (value: ControlMode) => {
           if (index === displayedRef.current) setMode(value);
@@ -619,7 +747,7 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
       if (!element || element.style.visibility === 'visible') continue;
       controllers.current[index]?.jumpToScrollFrame(frameAt(index, chapter.current.current, COUNT));
     }
-  }, [displayed, loaded, reducedMotion]);
+  }, [displayed, attached, reducedMotion]);
 
   // Movimento reduzido: sem rolagem presa; só o sabor escolhido aparece, de frente.
   useEffect(() => {
@@ -635,7 +763,7 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
     controllers.current.forEach((controller) => {
       if (controller && controller.getMode() === 'scroll') controller.setManualFrame(0);
     });
-  }, [reducedMotion, displayed, loaded]);
+  }, [reducedMotion, displayed, attached]);
 
   // Diagnóstico (?debug): capítulo suavizado e quadro esperado para cada sabor.
   useEffect(
@@ -647,6 +775,18 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
         displayed: displayedRef.current,
         expectedFrame: (index: number, cf: number) => Math.round(frameAt(index, cf, COUNT)) % 180,
       })),
+    [],
+  );
+
+  // Diagnóstico dos vídeos: estado do download de cada sabor (na resolução atual) e o nível de qualidade.
+  useEffect(
+    () =>
+      registerProbe('videos', () =>
+        Object.fromEntries([
+          ...FLAVORS.map((item) => [item.id, videoState(videoUrlRef.current(item))]),
+          ['quality', getQualityReason() || 'full'],
+        ]),
+      ),
     [],
   );
 
@@ -789,7 +929,7 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
           {FLAVORS.map((item, index) => {
             const isCurrent = index === displayed;
             const isNeighbour = Math.abs(index - displayed) === 1;
-            const isLoaded = loaded.includes(index);
+            const source = attached.get(index) ?? null;
             const preload: PreloadHint = isCurrent || isNeighbour ? 'auto' : 'metadata';
             return (
               <FramedVideo
@@ -799,8 +939,9 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
                 framing={framing}
                 poster={postersWanted || isCurrent ? item.poster : null}
                 posterBack={postersWanted && !reducedMotion ? item.posterBack : null}
-                src={isLoaded ? (cropMode ? item.videoCrop : item.video) : null}
-                crop={cropMode ? VIDEO_CROP : null}
+                src={source?.src ?? null}
+                srcName={source?.name ?? null}
+                crop={videoCrop}
                 preload={preload}
                 active={onStage && (isCurrent || (isNeighbour && !reducedMotion))}
                 wrapManual
@@ -819,6 +960,7 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
           wide={wide}
           displayed={displayed}
           reducedMotion={reducedMotion}
+          lite={lite}
           active={onStage}
           stageRef={stageRef}
           introRef={topRef}

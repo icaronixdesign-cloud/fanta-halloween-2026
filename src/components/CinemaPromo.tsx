@@ -118,6 +118,7 @@ export function CinemaPromo({ reducedMotion, finePointer }: Props) {
       className="cinema-promo"
       aria-labelledby="cinema-title"
       data-reduced={reducedMotion}
+      data-visible={visible}
     >
       <div ref={stageRef} className="cinema-promo__stage" data-state={state} data-panel={reducedMotion ? 'on' : 'off'}>
         <div

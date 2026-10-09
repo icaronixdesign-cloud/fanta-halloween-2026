@@ -36,17 +36,22 @@ export interface JackAdmirer {
   /** Troca de sabor: reação curta e cor do recorte. */
   react(accent: string): void;
   setActive(active: boolean): void;
+  /** Nível leve (quality.ts): resolução 1× e 30 quadros/s. */
+  setLite(lite: boolean): void;
   dispose(): void;
 }
 
 interface Options {
   reduced: boolean;
+  lite?: boolean;
   onReady?: () => void;
 }
 
 export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options): Promise<JackAdmirer> {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+  let lite = Boolean(opts.lite);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !lite, alpha: true, powerPreference: 'high-performance' });
+  const pixelRatio = () => (lite ? 1 : Math.min(window.devicePixelRatio, 1.25));
+  renderer.setPixelRatio(pixelRatio());
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.95;
@@ -143,9 +148,20 @@ export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options
 
   const stopX = () => stopNdc * halfW;
 
+  // Tamanho pelo ResizeObserver: ler clientWidth/clientHeight a cada quadro forçava o navegador a recalcular o estilo
+  // da página no meio do quadro (o palco acabou de escrever opacidades e transforms).
+  let boxW = canvas.clientWidth;
+  let boxH = canvas.clientHeight;
+  const observer = new ResizeObserver(([entry]) => {
+    boxW = entry.contentRect.width;
+    boxH = entry.contentRect.height;
+    kick();
+  });
+  observer.observe(canvas);
+
   function resize() {
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
+    const w = boxW;
+    const h = boxH;
     if (!w || !h || (w === width && h === height)) return;
     width = w;
     height = h;
@@ -220,8 +236,8 @@ export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options
   let skip = false;
   const loop = () => {
     raf = 0;
-    // parado e sem reação: um quadro sim, outro não (sobra tempo para o vídeo da lata no mesmo vsync)
-    const calm = phase === 'standing' && pulse === 0 && Math.abs(x - stopX()) < 0.002;
+    // parado e sem reação (ou no nível leve): um quadro sim, outro não (sobra tempo para o vídeo da lata no mesmo vsync)
+    const calm = lite || (phase === 'standing' && pulse === 0 && Math.abs(x - stopX()) < 0.002);
     skip = calm && !skip;
     if (!skip) {
       resize();
@@ -284,8 +300,16 @@ export async function createJackAdmirer(canvas: HTMLCanvasElement, opts: Options
       active = next;
       kick();
     },
+    setLite(next) {
+      if (next === lite) return;
+      lite = next;
+      renderer.setPixelRatio(pixelRatio());
+      width = 0; // força o setSize com a nova resolução
+      kick();
+    },
     dispose() {
       if (raf) cancelAnimationFrame(raf);
+      observer.disconnect();
       window.removeEventListener('resize', kick);
       timer.dispose();
       mixer.stopAllAction();

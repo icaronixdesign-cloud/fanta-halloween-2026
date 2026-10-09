@@ -182,7 +182,9 @@
   overflow: hidden;
   isolation: isolate;
   background: #000;
-  transition: --accent 0.5s ease;
+  /* Sem transição de --accent aqui: ela é herdada, então animar a cor no palco recalculava o estilo dos ~150 elementos
+     dele em cada quadro do meio segundo depois de cada troca (os quadros mais lentos da rolagem). A cor assenta direto
+     e só o halo e o nome fazem a passagem, cada um no próprio elemento. */
   --q: 0;
 }
 
@@ -196,6 +198,19 @@
   syntax: '<number>';
   inherits: false;
   initial-value: 0.5;
+}
+
+/* Parallax do mouse (usePointerParallax): escrito só na mídia e no bloco do nome; sem herança, nada abaixo recalcula. */
+@property --mx {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --my {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
 }
 
 @property --push {
@@ -290,8 +305,7 @@
   top: 0;
   transform-origin: 50% 50%;
   will-change: transform, opacity;
-  /* Profundidade: quanto mais perto, mais o mouse o desloca (a lata anda -8px). */
-  translate: calc(var(--mx, 0) * var(--px) * -1px) calc(var(--my, 0) * var(--px) * -0.6px);
+  /* O deslocamento do mouse entra no transform escrito por FlavorWorld (profundidade por lugar, SLOT_DEPTH.parallax). */
 }
 
 .world__float {
@@ -325,6 +339,13 @@
   transition: opacity 0.3s ease;
 }
 
+/* Cor do halo com transição própria: sem herança, a passagem de cor só recalcula o próprio halo. */
+@property --halo {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #ff8b3d;
+}
+
 /* Halo do sabor nas bordas vazias + leitura dos textos laterais (fora da área da lata). */
 .showcase__stage::after {
   content: '';
@@ -332,9 +353,11 @@
   inset: 0;
   z-index: 3;
   pointer-events: none;
+  --halo: var(--accent);
+  transition: --halo 0.5s ease;
   background:
-    radial-gradient(42% 60% at 0% 100%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
-    radial-gradient(36% 50% at 100% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%);
+    radial-gradient(42% 60% at 0% 100%, color-mix(in srgb, var(--halo) 16%, transparent), transparent 70%),
+    radial-gradient(36% 50% at 100% 0%, color-mix(in srgb, var(--halo) 10%, transparent), transparent 70%);
 }
 
 .showcase__stage.is-wide::before {
@@ -398,6 +421,12 @@
 .showcase__stage[data-cue='off'] .showcase__hint {
   opacity: 0;
   transform: translate(-50%, -30%);
+}
+
+/* escondida, a dica não anima: cada animação em curso recalcula o estilo do elemento em todo quadro da rolagem */
+.showcase__hint[data-visible='false'] *,
+.showcase__stage[data-cue='off'] .showcase__hint * {
+  animation: none;
 }
 
 .showcase__hint-icon {
@@ -557,6 +586,7 @@
 .showcase__name {
   margin-top: 14px;
   color: var(--accent);
+  transition: color 0.5s ease;
   font-weight: 880;
   font-stretch: 70%;
   line-height: 0.85;
@@ -1085,4 +1115,9 @@
     margin-top: 8px;
     font-size: min(calc(100cqi / (var(--len) * 0.56)), 15svh);
   }
+}
+
+/* Nível leve (quality.ts): elementos do mundo parados no lugar, sem a flutuação contínua. */
+.world.is-lite .world__float {
+  animation: none;
 }

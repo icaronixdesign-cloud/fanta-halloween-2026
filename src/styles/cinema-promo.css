@@ -84,6 +84,11 @@
   animation: cinema-rec 1.6s ease-in-out infinite;
 }
 
+/* fora da tela o ponto não pisca (seguiria recalculando estilo em todo quadro das outras seções) */
+.cinema-promo[data-visible='false'] .cinema-promo__tag-dot {
+  animation-play-state: paused;
+}
+
 @keyframes cinema-rec {
   50% {
     opacity: 0.35;

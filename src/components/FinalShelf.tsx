@@ -24,6 +24,8 @@ interface Props {
 
 /** Abaixo disto o toque na seta vira um passo, não uma caminhada contínua (ms). */
 const TAP_MS = 220;
+/** Pausa na rolagem (ms) que conta como "parado": hora de montar a cena sem ninguém ver o engasgo. */
+const IDLE_LOAD_MS = 450;
 
 export function FinalShelf({ reducedMotion, finePointer }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
@@ -36,15 +38,37 @@ export function FinalShelf({ reducedMotion, finePointer }: Props) {
   const [arrived, setArrived] = useState(false);
   const pressedAt = useRef(0);
 
-  // carrega uma vez, com uma tela de folga
+  // Carrega uma vez. Montar a cena (GLB, shaders, texturas) ocupa o thread principal por centenas de ms: feito no meio
+  // da rolagem, travava a última lata dos sabores. Então, a até três telas daqui, espera uma pausa na rolagem; quem não
+  // para de rolar carrega com uma tela de folga, como antes.
   useEffect(() => {
     const section = sectionRef.current;
     if (!section || load) return;
-    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && setLoad(true), {
+    let near = false;
+    let idle = 0;
+    const onScroll = () => {
+      window.clearTimeout(idle);
+      if (near) idle = window.setTimeout(() => setLoad(true), IDLE_LOAD_MS);
+    };
+    const early = new IntersectionObserver(
+      ([entry]) => {
+        near = entry.isIntersecting;
+        onScroll();
+      },
+      { rootMargin: '300% 0px 300% 0px' },
+    );
+    const late = new IntersectionObserver(([entry]) => entry.isIntersecting && setLoad(true), {
       rootMargin: '100% 0px 100% 0px',
     });
-    observer.observe(section);
-    return () => observer.disconnect();
+    early.observe(section);
+    late.observe(section);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      early.disconnect();
+      late.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      window.clearTimeout(idle);
+    };
   }, [load]);
 
   useEffect(() => {

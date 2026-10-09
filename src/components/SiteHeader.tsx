@@ -75,28 +75,48 @@ function Cobweb({ side }: { side: 'left' | 'right' }) {
 export function SiteHeader({ reducedMotion }: Props) {
   const [current, setCurrent] = useState('colecao');
 
-  // Seção atual (só muda de vez em quando).
+  // Seção atual (só muda de vez em quando). O topo de cada seção é medido só quando o layout muda; na rolagem basta
+  // comparar com scrollY. Medir a cada quadro (getBoundingClientRect) forçava o navegador a recalcular o estilo no
+  // meio do quadro, logo depois de o palco dos sabores escrever as camadas.
   useEffect(() => {
     let raf = 0;
+    let tops: Array<{ id: string; top: number }> = [];
+    let shown = '';
+    const measure = () => {
+      tops = LINKS.flatMap((link) => {
+        const element = document.getElementById(link.id);
+        return element ? [{ id: link.id, top: element.getBoundingClientRect().top + window.scrollY }] : [];
+      });
+    };
     const update = () => {
       raf = 0;
-      const probe = window.innerHeight * 0.45;
+      const line = window.scrollY + window.innerHeight * 0.45;
       let active = LINKS[0].id;
-      for (const link of LINKS) {
-        const element = document.getElementById(link.id);
-        if (element && element.getBoundingClientRect().top <= probe) active = link.id;
-      }
-      setCurrent((previous) => (previous === active ? previous : active));
+      for (const { id, top } of tops) if (top <= line) active = id;
+      // só avisa o React quando a seção muda (um setState por quadro ainda agenda trabalho no React)
+      if (active === shown) return;
+      shown = active;
+      setCurrent(active);
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
     };
+    const onLayout = () => {
+      measure();
+      onScroll();
+    };
+    measure();
     update();
+    const observer = new ResizeObserver(onLayout);
+    observer.observe(document.body);
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onLayout);
+    window.addEventListener('load', onLayout);
     return () => {
+      observer.disconnect();
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', onLayout);
+      window.removeEventListener('load', onLayout);
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
