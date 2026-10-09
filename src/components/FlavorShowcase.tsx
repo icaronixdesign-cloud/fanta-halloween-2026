@@ -1020,7 +1020,8 @@ export function FlavorShowcase({ reducedMotion, finePointer }: Props) {
                 key={exiting.key}
                 className="showcase__name showcase__name--exit"
                 aria-hidden="true"
-                style={nameStyle(exiting.flavor)}
+                // o nome que sai fica na cor do próprio sabor (o palco já trocou --accent para o novo)
+                style={{ ...nameStyle(exiting.flavor), color: exiting.flavor.accent }}
               >
                 <span className="showcase__name-inner is-exit">
                   <NameLines flavor={exiting.flavor} />
